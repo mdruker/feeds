@@ -1,0 +1,121 @@
+import { Kysely, Migration, MigrationProvider } from 'kysely'
+
+const migrations: Record<string, Migration> = {}
+
+export const migrationProvider: MigrationProvider = {
+  async getMigrations() {
+    return migrations
+  },
+}
+
+migrations['001'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('sub_state')
+      .addColumn('service', 'varchar', (col) => col.primaryKey())
+      .addColumn('cursor', 'integer', (col) => col.notNull())
+      .execute()
+
+    await db.schema
+      .createTable('actor')
+      .addColumn('did', 'varchar', (col) => col.primaryKey())
+      .addColumn('handle', 'varchar', (col) => col.notNull())
+      .addColumn('created_at', 'varchar', (col) => col.notNull())
+      .execute()
+
+    await db.schema
+      .createTable('follow')
+      .addColumn('uri', 'varchar', (col) => col.primaryKey())
+      .addColumn('source_did', 'varchar', (col) => col.notNull())
+      .addColumn('target_did', 'varchar', (col) => col.notNull())
+      .addColumn('created_at', 'varchar', (col) => col.notNull())
+      .addColumn('is_mutual', 'numeric', (col) => col.notNull())
+      .addColumn('actor_score', 'numeric', (col) => col.notNull())
+      .execute()
+    await db.schema
+      .createIndex('idx_follow_source_target')
+      .on('follow')
+      .columns(['source_did', 'target_did'])
+      .execute()
+    await db.schema
+      .createIndex('idx_follow_target')
+      .on('follow')
+      .column('target_did')
+      .execute()
+
+    await db.schema
+      .createTable('post')
+      .addColumn('uri', 'varchar', (col) => col.primaryKey())
+      .addColumn('cid', 'varchar', (col) => col.notNull())
+      .addColumn('author_did', 'varchar', (col) => col.notNull())
+      .addColumn('reply_parent_uri', 'varchar')
+      .addColumn('reply_root_uri', 'varchar')
+      .addColumn('indexed_at', 'varchar', (col) => col.notNull())
+      .addColumn('num_likes', 'numeric', (col) => col.notNull())
+      .addColumn('num_replies', 'numeric', (col) => col.notNull())
+      .addColumn('num_reposts', 'numeric', (col) => col.notNull())
+      .execute()
+    await db.schema
+      .createIndex('idx_post_indexed_at')
+      .on('post')
+      .column('indexed_at')
+      .execute()
+    await db.schema
+      .createIndex('idx_post_author_indexed_at')
+      .on('post')
+      .columns(['author_did', 'indexed_at'])
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable('sub_state').execute()
+    await db.schema.dropTable('actor').execute()
+    await db.schema.dropTable('follow').execute()
+    await db.schema.dropTable('post').execute()
+  },
+}
+
+migrations['002'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('auth_session')
+      .addColumn('key', 'varchar', (col) => col.primaryKey())
+      .addColumn('session', 'varchar', (col) => col.notNull())
+      .execute()
+    await db.schema
+      .createTable('auth_state')
+      .addColumn('key', 'varchar', (col) => col.primaryKey())
+      .addColumn('state', 'varchar', (col) => col.notNull())
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable('auth_session').execute()
+    await db.schema.dropTable('auth_state').execute()
+  },
+}
+
+migrations['003'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema.alterTable('sub_state')
+      .addColumn('restart', 'numeric')
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema.alterTable('auth_session').dropColumn('restart').execute()
+  },
+}
+
+migrations['004'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('admin')
+      .addColumn('did', 'varchar', (col) => col.primaryKey())
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable('admin').execute()
+  },
+}
