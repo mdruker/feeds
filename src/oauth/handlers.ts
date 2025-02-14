@@ -70,6 +70,7 @@ export const loginRouter = (ctx: AppContext) => {
           cookieName: 'sid',
           password: process.env.FEEDGEN_COOKIE_SECRET!!,
         })
+        // TODO: handle idempotence without errors
         assert(!clientSession.did, 'session already exists')
         clientSession.did = session.did
         await clientSession.save()

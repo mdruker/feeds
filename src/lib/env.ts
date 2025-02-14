@@ -21,3 +21,9 @@ export function debugLog(text: string) {
     console.log(text)
   }
 }
+
+export function nonProductionLog(text: string) {
+  if (!isProduction()) {
+    console.log(text)
+  }
+}
