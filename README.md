@@ -6,6 +6,8 @@ This started as a fork from https://github.com/bluesky-social/feed-generator but
 
 This currently powers one feed - Catch Up On Follows. The app is deployed on fly.io on one server with one attached data volume containing a sqlite database.
 
+Feeds are published/unpublished with the scripts configured in `package.json`, e.g. `yarn publishStaging`.
+
 Features:
 * Tracks all posts over 24 hours
 * Records and updates engagement counts for posts (additions only, no removals)
