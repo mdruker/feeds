@@ -123,9 +123,12 @@ export abstract class FirehoseSubscriptionBase {
         .set('restart', undefined)
         .execute()
 
-      // TODO: actually figure out a way to make this work. Currently it gets overridden.
+      this.jetstream.close()
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
       this.jetstream.cursor = dbCursor.cursor
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      this.jetstream.start()
+      await new Promise((resolve) => setTimeout(resolve, 50))
     }
 
     await this.db

@@ -8,6 +8,8 @@ This currently powers one feed - Catch Up On Follows. The app is deployed on fly
 
 Feeds are published/unpublished with the scripts configured in `package.json`, e.g. `yarn publishStaging`.
 
+To update the cursor, update the corresponding row in sub_state with the new microsecond cursor value and `restart = 1`.
+
 Features:
 * Tracks all posts over 24 hours
 * Records and updates engagement counts for posts (additions only, no removals)
