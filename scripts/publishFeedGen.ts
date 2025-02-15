@@ -10,23 +10,15 @@ const run = async () => {
   if (!process.env.FEEDGEN_PUBLISHER_HANDLE) {
     throw new Error('Please provide a publisher handle in the corresponding .env file')
   }
-
+  if (!process.env.FEEDGEN_PUBLISHER_PDS) {
+    throw new Error('Please provide a publisher PDS in the corresponding .env file')
+  }
   if (!process.env.FEEDGEN_HOSTNAME) {
     throw new Error('Please provide a hostname in the corresponding .env file')
   }
 
-  const handle = await input({
-    message: 'Enter your Bluesky handle',
-    validate: (value) => value.length > 0
-  })
-
   const userPassword = await password({
-    message: 'Enter your Bluesky password (preferably an App Password):'
-  })
-
-  const service = await input({
-    message: 'Optionally, enter a custom PDS service to sign in with:',
-    default: 'https://bsky.social'
+    message: `Enter a Bluesky app password for ${process.env.FEEDGEN_PUBLISHER_HANDLE}:`
   })
 
   const recordName = await input({
@@ -50,7 +42,7 @@ const run = async () => {
   const feedGenDid = `did:web:${process.env.FEEDGEN_HOSTNAME}`
 
   // only update this if in a test environment
-  const agent = new AtpAgent({ service: service ? service : 'https://bsky.social' })
+  const agent = new AtpAgent({ service: process.env.FEEDGEN_PUBLISHER_PDS })
   await agent.login({ identifier: process.env.FEEDGEN_PUBLISHER_HANDLE, password: userPassword})
 
   let avatarRef: BlobRef | undefined
@@ -64,13 +56,13 @@ const run = async () => {
       throw new Error('expected png or jpeg')
     }
     const img = await fs.readFile(avatar)
-    const blobRes = await agent.api.com.atproto.repo.uploadBlob(img, {
+    const blobRes = await agent.com.atproto.repo.uploadBlob(img, {
       encoding,
     })
     avatarRef = blobRes.data.blob
   }
 
-  await agent.api.com.atproto.repo.putRecord({
+  await agent.com.atproto.repo.putRecord({
     repo: agent.session?.did ?? '',
     collection: ids.AppBskyFeedGenerator,
     rkey: recordName,

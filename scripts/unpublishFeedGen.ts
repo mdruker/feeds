@@ -7,18 +7,15 @@ import { input, password, confirm } from '@inquirer/prompts'
 const run = async () => {
   dotenv.config()
 
-  const handle = await input({
-    message: 'Enter your Bluesky handle',
-    validate: (value) => value.length > 0
-  })
+  if (!process.env.FEEDGEN_PUBLISHER_HANDLE) {
+    throw new Error('Please provide a publisher handle in the corresponding .env file')
+  }
+  if (!process.env.FEEDGEN_PUBLISHER_PDS) {
+    throw new Error('Please provide a publisher PDS in the corresponding .env file')
+  }
 
   const userPassword = await password({
-    message: 'Enter your Bluesky password (preferably an App Password):'
-  })
-
-  const service = await input({
-    message: 'Optionally, enter a custom PDS service to sign in with:',
-    default: 'https://bsky.social'
+    message: `Enter a Bluesky app password for ${process.env.FEEDGEN_PUBLISHER_HANDLE}:`
   })
 
   const recordName = await input({
@@ -37,10 +34,10 @@ const run = async () => {
   }
 
   // only update this if in a test environment
-  const agent = new AtpAgent({ service: service })
-  await agent.login({ identifier: handle, password: userPassword })
+  const agent = new AtpAgent({ service: process.env.FEEDGEN_PUBLISHER_PDS })
+  await agent.login({ identifier: process.env.FEEDGEN_PUBLISHER_HANDLE, password: userPassword })
 
-  await agent.api.com.atproto.repo.deleteRecord({
+  await agent.com.atproto.repo.deleteRecord({
     repo: agent.session?.did ?? '',
     collection: ids.AppBskyFeedGenerator,
     rkey: recordName,
