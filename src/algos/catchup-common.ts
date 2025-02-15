@@ -1,11 +1,35 @@
 import { AppContext } from '../config'
 import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
-import { isProduction, nonProductionLog } from '../lib/env'
+import { nonProductionLog } from '../lib/env'
 import { AtUri } from '@atproto/syntax'
 
-export async function generateCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams, useStoredCursor: boolean) {
-  // Fetch all of actor's follows from the db
+export type CatchupSettings = {
+  include_replies: boolean | undefined
+}
+
+async function getSettingsWithDefaults(ctx: AppContext, requesterDid: string): Promise<CatchupSettings> {
+  let settingsResult = await ctx.db
+    .selectFrom('feed_settings')
+    .select('settings')
+    .where('actor_did', '=', requesterDid)
+    .where('shortname', '=', 'catchup')
+    .executeTakeFirst()
+  let settingsJson = settingsResult?.settings
+  let settings = settingsJson ? JSON.parse(settingsJson) as CatchupSettings: undefined
+
+  return {
+    include_replies: false,
+    ...settings
+  }
+}
+
+export async function generateCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams) {
   let t0 = performance.now()
+
+  const settings = await getSettingsWithDefaults(ctx, requesterDid)
+  nonProductionLog(`Got settings at ${Math.round(performance.now() - t0)}`)
+
+  // Fetch all of actor's follows from the db
   let follows = await ctx.db
     .selectFrom('follow')
     .selectAll()
@@ -44,10 +68,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     return x.indexed_at > cutOffDate.toISOString() && x.indexed_at < oldEnoughDate.toISOString()
   })
 
-  if (isProduction()) {
-    // Exclude all replies
-    res = res.filter((x) => !x.reply_parent_uri)
-  } else {
+  if (settings.include_replies) {
     let followedDids = follows.map(follow => follow.target_did)
 
     res = res.filter((x) => {
@@ -59,6 +80,9 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
       return followedDids.includes(new AtUri(x.reply_parent_uri).host) ||
       followedDids.includes(new AtUri(x.reply_root_uri).host)
     })
+  } else {
+    // Exclude all replies
+    res = res.filter((x) => !x.reply_parent_uri)
   }
 
   nonProductionLog(`Got posts at ${Math.round(performance.now() - t0)}`)

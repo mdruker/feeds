@@ -119,3 +119,25 @@ migrations['004'] = {
     await db.schema.dropTable('admin').execute()
   },
 }
+
+migrations['005'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('feed_settings')
+      .addColumn('actor_did', 'varchar', (col) => col.notNull())
+      .addColumn('shortname', 'varchar', (col) => col.notNull())
+      .addColumn('settings', 'varchar')
+      .execute()
+
+    await db.schema
+      .createIndex('idx_feed_settings_actor_shortname')
+      .unique()
+      .on('feed_settings')
+      .columns(['actor_did', 'shortname'])
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable('feed_settings').execute()
+  },
+}

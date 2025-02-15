@@ -27,7 +27,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
     await populateActor(ctx, requesterDid)
   }
 
-  return await generateCatchupFeed(ctx, requesterDid, params, true)
+  return await generateCatchupFeed(ctx, requesterDid, params)
 }
 
 async function populateActor(ctx: AppContext, requesterDid: string) {

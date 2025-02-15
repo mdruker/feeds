@@ -6,6 +6,7 @@ export type DatabaseSchema = {
   auth_session: AuthSession
   auth_state: AuthState
   admin: Admin
+  feed_settings: FeedSettings
 }
 
 export type SubState = {
@@ -58,3 +59,11 @@ type AuthSessionJson = string
 export type Admin = {
   did: string
 }
+
+export type FeedSettings = {
+  shortname: string
+  actor_did: string
+  settings: SettingsJson
+}
+
+type SettingsJson = string
