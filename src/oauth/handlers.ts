@@ -130,7 +130,7 @@ export const loginRouter = (ctx: AppContext) => {
         cookieName: 'sid',
         password: process.env.FEEDGEN_COOKIE_SECRET!!,
       })
-      await session.destroy()
+      session.destroy()
       return res.redirect('/')
     })
   )
@@ -142,21 +142,16 @@ export const loginRouter = (ctx: AppContext) => {
       // If the user is signed in, get an agent which communicates with their server
       const agent = await getSessionAgent(req, res, ctx)
 
-      // Map user DIDs to their domain-name handles
-      const didHandleMap: Record<string, string> = { }
-
       if (!agent) {
         // Serve the logged-out view
-        return res.type('html').send(page(home({ didHandleMap })))
+        return res.type('html').send(page(login({ })))
       }
+
+      let profile = await agent.getProfile({ actor: agent.did!! })
 
       // Serve the logged-in view
       return res.type('html').send(
-        page(
-          home({
-            didHandleMap
-          })
-        )
+        page(home({ handle: profile.data.handle }))
       )
     })
   )

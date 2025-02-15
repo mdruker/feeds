@@ -13,10 +13,10 @@ export function login(props: Props) {
 function content({ error }: Props) {
   return html`<div id="root">
     <div id="header">
-      <h1>[alpha] Feedgen</h1>
-      <p>Testing and configs</p>
+      <h1>feeds.mdruker.app</h1>
     </div>
     <div class="container">
+      Please login via bsky.social to access settings:
       <form action="/login" method="post" class="login-form">
         <input
           type="text"
