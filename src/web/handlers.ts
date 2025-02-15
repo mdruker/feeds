@@ -7,8 +7,8 @@ import express from 'express'
 import { getIronSession } from 'iron-session'
 import { AppContext } from '../config'
 import { page } from '../lib/view'
-import { login } from '../pages/login'
-import { home } from '../pages/home'
+import { login } from './pages/login'
+import { home } from './pages/home'
 
 type Session = { did: string }
 

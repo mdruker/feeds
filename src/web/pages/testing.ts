@@ -1,27 +1,11 @@
 import express from 'express'
-import { AppContext } from '../config'
-import { handler } from '../algos/catchup'
-import { QueryParams as GetPostsParams } from '../lexicon/types/app/bsky/feed/getPosts'
-import { QueryParams as ResolveHandleParams} from '../lexicon/types/com/atproto/identity/resolveHandle'
+import { AppContext } from '../../config'
+import { handler } from '../../algos/catchup'
+import { QueryParams as GetPostsParams } from '../../lexicon/types/app/bsky/feed/getPosts'
+import { QueryParams as ResolveHandleParams } from '../../lexicon/types/com/atproto/identity/resolveHandle'
 import { AppBskyFeedPost, AtpAgent } from '@atproto/api'
-import { Post } from '../db/schema'
-import { getSessionAgent } from '../oauth/handlers'
-import type { IncomingMessage, ServerResponse } from 'node:http'
-
-async function hasAdminPermission(req: IncomingMessage, res: ServerResponse<IncomingMessage>, ctx: AppContext): Promise<boolean> {
-  let oauthAgent = await getSessionAgent(req, res, ctx)
-  if (!oauthAgent || !oauthAgent.did) {
-    return false
-  }
-
-  let admin = await ctx.db
-    .selectFrom('admin')
-    .selectAll()
-    .where('did', '=', oauthAgent.did)
-    .executeTakeFirst()
-
-  return admin !== undefined
-}
+import { Post } from '../../db/schema'
+import { hasAdminPermission } from '../utils'
 
 const makeRouter = (ctx: AppContext) => {
   const router = express.Router()
@@ -30,7 +14,10 @@ const makeRouter = (ctx: AppContext) => {
     console.log(`handling /showAll`)
 
     if (!(await hasAdminPermission(_req, res, ctx))) {
-      return res.status(403).end();
+      return res
+        .status(403)
+        .type('html')
+        .send('<h1>Error: admin permission required</h1>')
     }
 
     try {
@@ -59,7 +46,10 @@ const makeRouter = (ctx: AppContext) => {
     console.log(`handling /showTimeline for ${_req.params.handle}`)
 
     if (!(await hasAdminPermission(_req, res, ctx))) {
-      return res.status(403).end();
+      return res
+        .status(403)
+        .type('html')
+        .send('<h1>Error: admin permission required</h1>')
     }
 
     try {
@@ -97,7 +87,10 @@ const makeRouter = (ctx: AppContext) => {
     console.log(`handling /showFeed for ${_req.params.handle}`)
 
     if (!(await hasAdminPermission(_req, res, ctx))) {
-      return res.status(403).end();
+      return res
+        .status(403)
+        .type('html')
+        .send('<h1>Error: admin permission required</h1>')
     }
 
     try {

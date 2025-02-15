@@ -9,9 +9,9 @@ import { createDb, Database, migrateToLatest } from './db/database'
 import { FirehoseSubscription } from './subscription'
 import { AppContext, Config } from './config'
 import wellKnown from './well-known'
-import testing from './pages/testing'
-import { createOauthClient } from './oauth/client'
-import { loginRouter } from './oauth/handlers'
+import testing from './web/pages/testing'
+import { createOauthClient } from './web/oauth/client'
+import { loginRouter } from './web/handlers'
 import path from 'node:path'
 
 export class FeedGenerator {
@@ -68,7 +68,7 @@ export class FeedGenerator {
     feedGeneration(server, ctx)
 
     // Static assets
-    app.use('/public', express.static(path.join(__dirname, 'pages', 'public')))
+    app.use('/public', express.static(path.join(__dirname, 'web/pages', 'public')))
 
     describeGenerator(server, ctx)
     app.use(server.xrpc.router)

@@ -1,7 +1,7 @@
 import { NodeOAuthClient } from '@atproto/oauth-client-node'
 import { SessionStore, StateStore } from './storage'
-import { Database } from '../db/database'
-import { Config } from '../config'
+import { Database } from '../../db/database'
+import { Config } from '../../config'
 
 export const createOauthClient = (db: Database, cfg: Config) => {
   const publicUrl = cfg.hostname !== '127.0.0.1'
