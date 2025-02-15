@@ -156,22 +156,5 @@ export const loginRouter = (ctx: AppContext) => {
     })
   )
 
-  // "Set status" handler
-  router.post(
-    '/status',
-    handler(async (req, res) => {
-      // If the user is signed in, get an agent which communicates with their server
-      const agent = await getSessionAgent(req, res, ctx)
-      if (!agent) {
-        return res
-          .status(401)
-          .type('html')
-          .send('<h1>Error: Session required</h1>')
-      }
-
-      return res.redirect('/')
-    })
-  )
-
   return router
 }
