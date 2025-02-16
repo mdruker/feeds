@@ -15,6 +15,7 @@ Features:
 * Records and updates engagement counts for posts (additions only, no removals)
 * Records accounts that use the feed
 * Records and updates following relationships for accounts that use the feed
+* Per-user settings and an authenticated web page to update them.
 * Consumes data from the Jetstream
 * Handles database operations in batches
 * Has authenticated testing endpoints to validate behavior
