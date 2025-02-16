@@ -58,11 +58,32 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   }
 })
 
+// Function to show the toast message
+function showToast(message, isError = false) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.remove('show', 'error');
+
+  // If it's an error, add error class
+  if (isError) {
+    toast.classList.add('error');
+  }
+
+  // Show the toast
+  toast.classList.add('show');
+
+  // Hide after 3 seconds
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 3000);
+}
+
 document.getElementById('settings-form').addEventListener('submit', async (e) => {
-  e.preventDefault()
-  const form = e.target
-  const include_replies = form.include_replies.value === 'true'
-  const posts_per_account = form.posts_per_account.value
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+  const include_replies = formData.get('include_replies') === 'true';
+  const posts_per_account = formData.get('posts_per_account')
 
   try {
     await fetch('/api/settings', {
@@ -75,13 +96,10 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
         posts_per_account: posts_per_account,
       })
     })
-    document.getElementById('settings-success').textContent = 'Settings updated'
-    setTimeout(() => {
-      document.getElementById('settings-success').textContent = ''
-    }, 5000)
+    showToast('Settings updated', false);
   } catch (error) {
-    console.error('Error saving settings:', error)
-    // Optionally show an error message
+    console.error('Error saving settings:', error);
+    showToast('Failed to save settings', true);
   }
 })
 
