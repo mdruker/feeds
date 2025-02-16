@@ -1,42 +1,136 @@
-body {
-    max-width: 800px;
-    margin: 0 auto;
+body { 
+    max-width: 800px; 
+    margin: 0 auto; 
     padding: 20px;
     font-family: system-ui, -apple-system, sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    line-height: 1.5;
 }
+
 .card {
-    border: 1px solid #ddd;
-    padding: 20px;
+    border: 1px solid #e1e1e1;
+    padding: 24px;
     margin: 20px 0;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.header-card {
+    background: white;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.settings-card {
+    background: white;
+}
+
+h1 {
+    margin: 0;
+    font-size: 24px;
+    color: #1a1a1a;
+}
+
+h2 {
+    margin: 0 0 20px 0;
+    font-size: 20px;
+    color: #1a1a1a;
+}
+
+.user-info {
+    margin: 8px 0 0 0;
+    color: #666;
+}
+
+.settings-group {
+    border: 1px solid #e1e1e1;
     border-radius: 8px;
+    padding: 20px;
+    margin: 0 0 20px 0;
 }
-.radio-group {
-    margin: 10px 0;
+
+.settings-group legend {
+    padding: 0 10px;
+    font-weight: 600;
+    color: #666;
 }
-button {
-    padding: 8px 16px;
-    background: #0066cc;
-    color: white;
-    border: none;
-    border-radius: 4px;
+
+.radio-option {
+    margin: 12px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.radio-option label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     cursor: pointer;
 }
-button:hover {
+
+.radio-option .description {
+    font-size: 14px;
+    color: #666;
+}
+
+input[type="radio"] {
+    margin-top: 4px;
+    cursor: pointer;
+}
+
+input[type="text"] {
+    padding: 12px;
+    font-size: 16px;
+    width: 100%;
+    margin-bottom: 16px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.primary-button {
+    background: #0066cc;
+    color: white;
+}
+
+.primary-button:hover {
     background: #0052a3;
 }
+
+.secondary-button {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.secondary-button:hover {
+    background: #e0e0e0;
+}
+
 .error {
     color: #cc0000;
     margin-top: 10px;
-}
-.success {
-    color: #0066cc;
-    margin-top: 10px;
-}
-input[type="text"] {
-    padding: 8px;
-    font-size: 16px;
-    width: 100%;
-    margin-bottom: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    font-size: 14px;
 }
