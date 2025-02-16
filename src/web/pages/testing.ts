@@ -6,7 +6,6 @@ import { QueryParams as ResolveHandleParams } from '../../lexicon/types/com/atpr
 import { AppBskyFeedPost, AtpAgent } from '@atproto/api'
 import { Post } from '../../db/schema'
 import { hasAdminPermission } from '../utils'
-import type { IncomingMessage, ServerResponse } from 'node:http'
 
 const makeRouter = (ctx: AppContext) => {
   const router = express.Router()

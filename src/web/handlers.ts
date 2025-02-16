@@ -7,8 +7,6 @@ import express from 'express'
 import { getIronSession } from 'iron-session'
 import { AppContext } from '../config'
 import { page } from '../lib/view'
-import { login } from './pages/login'
-import { home } from './pages/home'
 import { CatchupSettings, getSettingsWithDefaults, updateSettings } from '../algos/catchup-common'
 
 type Session = { did: string }
@@ -52,6 +50,39 @@ export async function getSessionAgent(
 export const loginRouter = (ctx: AppContext) => {
   const router = express.Router()
 
+  // Serve static files
+  router.use(express.static('public'))
+
+  // API endpoints
+  router.get('/api/me', handler(async (req, res) => {
+    const agent = await getSessionAgent(req, res, ctx)
+    if (!agent) {
+      return res.status(401).json({ error: 'Not logged in' })
+    }
+
+    const profile = await agent.getProfile({ actor: agent.did!! })
+    const settings = await getSettingsWithDefaults(ctx, agent.did!!)
+
+    return res.json({
+      handle: profile.data.handle,
+      settings
+    })
+  }))
+
+  router.post('/api/settings', handler(async (req, res) => {
+    const agent = await getSessionAgent(req, res, ctx)
+    if (!agent) {
+      return res.status(401).json({ error: 'Not logged in' })
+    }
+
+    const settings: CatchupSettings = {
+      include_replies: req.body.include_replies
+    }
+
+    await updateSettings(ctx, agent.did!!, settings)
+    return res.json({ success: true })
+  }))
+
   // OAuth metadata
   router.get(
     '/client-metadata.json',
@@ -83,22 +114,14 @@ export const loginRouter = (ctx: AppContext) => {
     })
   )
 
-  // Login page
-  router.get(
-    '/login',
-    handler(async (_req, res) => {
-      return res.type('html').send(page(login({})))
-    })
-  )
-
   // Login handler
   router.post(
     '/login',
     handler(async (req, res) => {
-      // Validate
       const handle = req.body?.handle
       if (typeof handle !== 'string' || !isValidHandle(handle)) {
-        return res.type('html').send(page(login({ error: 'invalid handle' })))
+        // TODO: surface error
+        return res.json({ success: false })
       }
 
       // Initiate the OAuth flow
@@ -109,16 +132,8 @@ export const loginRouter = (ctx: AppContext) => {
         return res.redirect(url.toString())
       } catch (err) {
         console.error({ err }, 'oauth authorize failed')
-        return res.type('html').send(
-          page(
-            login({
-              error:
-                err instanceof OAuthResolverError
-                  ? err.message
-                  : "couldn't initiate login",
-            })
-          )
-        )
+        // TODO: surface error
+        return res.json({ success: false })
       }
     })
   )
@@ -136,46 +151,10 @@ export const loginRouter = (ctx: AppContext) => {
     })
   )
 
-  // Homepage
-  router.get(
-    '/',
-    handler(async (req, res) => {
-      // If the user is signed in, get an agent which communicates with their server
-      const agent = await getSessionAgent(req, res, ctx)
-
-      if (!agent) {
-        // Serve the logged-out view
-        return res.type('html').send(page(login({ })))
-      }
-
-      let profile = await agent.getProfile({ actor: agent.did!! })
-
-      let catchupSettings = await getSettingsWithDefaults(ctx, agent.did!!)
-
-      // Serve the logged-in view
-      return res.type('html').send(
-        page(home({
-          handle: profile.data.handle,
-          settings: catchupSettings
-        }))
-      )
-    })
-  )
-
-  router.post(
-    '/settings',
-    handler(async (req, res) => {
-      const agent = await getSessionAgent(req, res, ctx)
-
-      if (!agent) {
-        return res.redirect('/')
-      }
-
-      let settings = req.body?.settings as CatchupSettings
-
-      await updateSettings(ctx, agent.did!!, settings)
-    })
-  )
+  // Serve index.html for all other routes
+  router.get('*', (req, res) => {
+    res.sendFile('index.html', { root: 'public' })
+  })
 
   return router
 }

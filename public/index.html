@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Feed Settings</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div id="app">
+        <div class="card" id="login-view" style="display: none">
+            <h1>feeds.mdruker.app</h1>
+            <form id="login-form">
+                <input
+                    type="text"
+                    name="handle"
+                    placeholder="Enter your handle (eg alice.bsky.social)"
+                    required
+                />
+                <button type="submit">Log in</button>
+                <p id="login-error" class="error"></p>
+            </form>
+        </div>
+
+        <div id="settings-view" style="display: none">
+            <div class="card">
+                <h1>feeds.mdruker.app</h1>
+                <p>Logged in as <span id="user-handle"></span></p>
+            </div>
+
+            <div class="card">
+                <h2>Catchup Settings</h2>
+                <form id="settings-form">
+                    <div class="radio-group">
+                        <input type="radio" id="include_replies_false" name="include_replies" value="false">
+                        <label for="include_replies_false">No replies</label><br>
+                        <input type="radio" id="include_replies_true" name="include_replies" value="true">
+                        <label for="include_replies_true">Include replies</label>
+                    </div>
+                    <button type="submit">Save Settings</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <form id="logout-form">
+                    <button type="submit">Log out</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="/app.js"></script>
+</body>
+</html>
