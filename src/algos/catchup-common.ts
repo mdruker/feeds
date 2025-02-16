@@ -92,15 +92,9 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   if (settings.include_replies) {
     let followedDids = follows.map(follow => follow.target_did)
 
-    res = res.filter((x) => {
-      if (!x.reply_parent_uri || !x.reply_root_uri) {
-        return true;
-      }
-
-      // We do want replies, but only ones that are a thread under a follow or a reply to a follow.
-      return followedDids.includes(new AtUri(x.reply_parent_uri).host) ||
-      followedDids.includes(new AtUri(x.reply_root_uri).host)
-    })
+    // Only consider replies where the original thread root is followed.
+    res = res.filter((x) =>
+      !x.reply_root_uri || followedDids.includes(new AtUri(x.reply_root_uri).host))
   } else {
     // Exclude all replies
     res = res.filter((x) => !x.reply_parent_uri)
