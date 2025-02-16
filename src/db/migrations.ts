@@ -126,6 +126,7 @@ migrations['005'] = {
       .createTable('feed_settings')
       .addColumn('actor_did', 'varchar', (col) => col.notNull())
       .addColumn('shortname', 'varchar', (col) => col.notNull())
+      .addColumn('updated_at', 'varchar', (col) => col.notNull())
       .addColumn('settings', 'varchar')
       .execute()
 

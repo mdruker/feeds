@@ -38,9 +38,10 @@ export async function updateSettings(ctx: AppContext, actorDid: string, settings
     .values( {
       actor_did: actorDid,
       shortname: 'catchup',
-      settings: settingsJson
+      settings: settingsJson,
+      updated_at: new Date().toISOString(),
     })
-    .onConflict((oc) => oc.doUpdateSet( { settings: settingsJson }))
+    .onConflict((oc) => oc.doUpdateSet( { settings: settingsJson, updated_at: new Date().toISOString() }))
     .execute()
 }
 

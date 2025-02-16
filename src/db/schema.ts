@@ -63,7 +63,8 @@ export type Admin = {
 export type FeedSettings = {
   shortname: string
   actor_did: string
-  settings: SettingsJson
+  settings: SettingsJson,
+  updated_at: string
 }
 
 type SettingsJson = string
