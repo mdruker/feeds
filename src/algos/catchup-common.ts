@@ -7,7 +7,7 @@ export type CatchupSettings = {
   include_replies: boolean | undefined
 }
 
-async function getSettingsWithDefaults(ctx: AppContext, requesterDid: string): Promise<CatchupSettings> {
+export async function getSettingsWithDefaults(ctx: AppContext, requesterDid: string): Promise<CatchupSettings> {
   let settingsResult = await ctx.db
     .selectFrom('feed_settings')
     .select('settings')
@@ -21,6 +21,22 @@ async function getSettingsWithDefaults(ctx: AppContext, requesterDid: string): P
     include_replies: false,
     ...settings
   }
+}
+
+export async function updateSettings(ctx: AppContext, actorDid: string, settings: CatchupSettings) {
+  let settingsJson = JSON.stringify(settings)
+
+  console.log(`Updating settings for ${actorDid} to: ${settingsJson}`)
+
+  await ctx.db
+    .insertInto('feed_settings')
+    .values( {
+      actor_did: actorDid,
+      shortname: 'catchup',
+      settings: settingsJson
+    })
+    .onConflict((oc) => oc.doUpdateSet( { settings: settingsJson }))
+    .execute()
 }
 
 export async function generateCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams) {

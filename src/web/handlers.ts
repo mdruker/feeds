@@ -9,6 +9,7 @@ import { AppContext } from '../config'
 import { page } from '../lib/view'
 import { login } from './pages/login'
 import { home } from './pages/home'
+import { CatchupSettings, getSettingsWithDefaults, updateSettings } from '../algos/catchup-common'
 
 type Session = { did: string }
 
@@ -149,10 +150,30 @@ export const loginRouter = (ctx: AppContext) => {
 
       let profile = await agent.getProfile({ actor: agent.did!! })
 
+      let catchupSettings = await getSettingsWithDefaults(ctx, agent.did!!)
+
       // Serve the logged-in view
       return res.type('html').send(
-        page(home({ handle: profile.data.handle }))
+        page(home({
+          handle: profile.data.handle,
+          settings: catchupSettings
+        }))
       )
+    })
+  )
+
+  router.post(
+    '/settings',
+    handler(async (req, res) => {
+      const agent = await getSessionAgent(req, res, ctx)
+
+      if (!agent) {
+        return res.redirect('/')
+      }
+
+      let settings = req.body?.settings as CatchupSettings
+
+      await updateSettings(ctx, agent.did!!, settings)
     })
   )
 
