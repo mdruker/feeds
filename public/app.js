@@ -9,9 +9,10 @@ async function loadUserData() {
     const data = await response.json()
     document.getElementById('user-handle').textContent = data.handle
 
-    // Set radio button values
+    // Set settings values
     document.getElementById('include_replies_true').checked = data.settings.include_replies
     document.getElementById('include_replies_false').checked = !data.settings.include_replies
+    document.getElementById('posts_per_account').value = data.settings.posts_per_account
 
     showSettingsView()
   } catch (error) {
@@ -61,6 +62,7 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
   e.preventDefault()
   const form = e.target
   const include_replies = form.include_replies.value === 'true'
+  const posts_per_account = form.posts_per_account.value
 
   try {
     await fetch('/api/settings', {
@@ -68,7 +70,10 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ include_replies })
+      body: JSON.stringify({
+        include_replies: include_replies,
+        posts_per_account: posts_per_account,
+      })
     })
     document.getElementById('settings-success').textContent = 'Settings updated'
     setTimeout(() => {

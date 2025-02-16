@@ -1,12 +1,10 @@
 import assert from 'node:assert'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { OAuthResolverError } from '@atproto/oauth-client-node'
 import { isValidHandle } from '@atproto/syntax'
 import { Agent } from '@atproto/api'
 import express from 'express'
 import { getIronSession } from 'iron-session'
 import { AppContext } from '../config'
-import { page } from '../lib/view'
 import { CatchupSettings, getSettingsWithDefaults, updateSettings } from '../algos/catchup-common'
 
 type Session = { did: string }
@@ -75,8 +73,13 @@ export const loginRouter = (ctx: AppContext) => {
       return res.status(401).json({ error: 'Not logged in' })
     }
 
+    if (req.body.posts_per_account < 0 || req.body.posts_per_account > 100) {
+      return res.status(400).json({ error: 'Invalid value for posts_per_account' })
+    }
+
     const settings: CatchupSettings = {
-      include_replies: req.body.include_replies
+      include_replies: req.body.include_replies,
+      posts_per_account: req.body.posts_per_account,
     }
 
     await updateSettings(ctx, agent.did!!, settings)

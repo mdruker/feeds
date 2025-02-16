@@ -24,26 +24,28 @@
             <div class="card">
                 <h1>feeds.mdruker.app</h1>
                 <p>Logged in as <span id="user-handle"></span></p>
+                <form id="logout-form">
+                    <button type="submit">Log out</button>
+                </form>
             </div>
 
             <div class="card">
-                <h2>Catchup Settings</h2>
+                <h2>Settings - Catchup On Your Follows feed</h2>
                 <form id="settings-form">
                     <div class="radio-group">
+                        Replies in the feed (experimental):
                         <input type="radio" id="include_replies_false" name="include_replies" value="false">
-                        <label for="include_replies_false">No replies</label><br>
+                        <label for="include_replies_false">No replies</label>
                         <input type="radio" id="include_replies_true" name="include_replies" value="true">
                         <label for="include_replies_true">Include replies</label>
+                    </div>
+                    <div class="radio-group">
+                        Default posts per account per 24 hours:
+                        <input type="number" id="posts_per_account" name="posts_per_account" min="0" max="100">
                     </div>
                     <button type="submit">Save Settings</button>
                 </form>
                 <p id="settings-success" class="success"></p>
-            </div>
-
-            <div class="card">
-                <form id="logout-form">
-                    <button type="submit">Log out</button>
-                </form>
             </div>
         </div>
     </div>

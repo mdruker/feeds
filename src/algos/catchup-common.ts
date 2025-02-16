@@ -5,7 +5,11 @@ import { AtUri } from '@atproto/syntax'
 
 export type CatchupSettings = {
   include_replies: boolean | undefined
+  posts_per_account: number | undefined
 }
+
+const DEFAULT_INCLUDE_REPLIES = false
+const DEFAULT_POSTS_PER_ACCOUNT = 2
 
 export async function getSettingsWithDefaults(ctx: AppContext, requesterDid: string): Promise<CatchupSettings> {
   let settingsResult = await ctx.db
@@ -18,7 +22,8 @@ export async function getSettingsWithDefaults(ctx: AppContext, requesterDid: str
   let settings = settingsJson ? JSON.parse(settingsJson) as CatchupSettings: undefined
 
   return {
-    include_replies: false,
+    include_replies: DEFAULT_INCLUDE_REPLIES,
+    posts_per_account: DEFAULT_POSTS_PER_ACCOUNT,
     ...settings
   }
 }
@@ -117,7 +122,8 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     if (!follow) {
       return []
     }
-    return entry[1].slice(0, Math.max(0, follow.actor_score + 2))
+    let postsPerAccount = settings.posts_per_account || DEFAULT_POSTS_PER_ACCOUNT
+    return entry[1].slice(0, Math.max(0, follow.actor_score + postsPerAccount))
   }).toArray().flat()
 
   nonProductionLog(`Filtered top posts at ${Math.round(performance.now() - t0)}`)
