@@ -28,6 +28,10 @@ button:hover {
     color: #cc0000;
     margin-top: 10px;
 }
+.success {
+    color: #0066cc;
+    margin-top: 10px;
+}
 input[type="text"] {
     padding: 8px;
     font-size: 16px;

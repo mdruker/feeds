@@ -70,7 +70,10 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
       },
       body: JSON.stringify({ include_replies })
     })
-    // Optionally show a success message
+    document.getElementById('settings-success').textContent = 'Settings updated'
+    setTimeout(() => {
+      document.getElementById('settings-success').textContent = ''
+    }, 5000)
   } catch (error) {
     console.error('Error saving settings:', error)
     // Optionally show an error message
