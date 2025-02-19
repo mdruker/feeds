@@ -77,6 +77,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
                 facet.features.some(feature =>
                   isLink(feature)))
             || create.record.embed && isExternalEmbed(create.record.embed.$type)
+            || undefined
         }
 
         let newVar: Post = {
