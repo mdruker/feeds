@@ -45,7 +45,7 @@ export async function getSessionAgent(
   }
 }
 
-export const loginRouter = (ctx: AppContext) => {
+export const webRouter = (ctx: AppContext) => {
   const router = express.Router()
 
   // Serve static files
@@ -154,8 +154,8 @@ export const loginRouter = (ctx: AppContext) => {
     })
   )
 
-  // Serve index.html for all other routes
-  router.get('*', (req, res) => {
+  // Serve index.html
+  router.get('/', (req, res) => {
     res.sendFile('index.html', { root: 'public' })
   })
 

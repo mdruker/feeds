@@ -6,6 +6,7 @@ import { QueryParams as ResolveHandleParams } from '../../lexicon/types/com/atpr
 import { AppBskyFeedPost, AtpAgent } from '@atproto/api'
 import { Post } from '../../db/schema'
 import { hasAdminPermission } from '../utils'
+import algos from '../../algos'
 
 const makeRouter = (ctx: AppContext) => {
   const router = express.Router()
@@ -83,8 +84,8 @@ const makeRouter = (ctx: AppContext) => {
     }
   })
 
-  router.get('/showFeed/:handle', async (_req, res, next) => {
-    console.log(`handling /showFeed for ${_req.params.handle}`)
+  router.get('/showFeed/:shortname/:handle', async (_req, res, next) => {
+    console.log(`handling ${_req.path}`)
 
     if (!(await hasAdminPermission(_req, res, ctx))) {
       return res
@@ -107,7 +108,13 @@ const makeRouter = (ctx: AppContext) => {
       }
 
       let t0 = performance.now()
-      let feedResponse = await handler(ctx, {feed: 'catchup', limit: 30}, resolveHandleResponse.data.did)
+
+      const algo = algos[_req.params.shortname]
+      if (!algo) {
+        return next(new Error())
+      }
+
+      let feedResponse = await algo(ctx, {feed: _req.params.shortname, limit: 30}, resolveHandleResponse.data.did)
       let postUris = feedResponse.feed.map((x) => x.post)
       let t1 = performance.now()
       console.log(`Testing: generated the feed for ${_req.params.handle} in ${Math.round(t1-t0)} ms`)

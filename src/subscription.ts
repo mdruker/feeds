@@ -1,4 +1,8 @@
 import { FirehoseSubscriptionBase, OperationsByType } from './util/subscription'
+import { isLink } from './lexicon/types/app/bsky/richtext/facet'
+import { isMain as isExternalEmbed } from './lexicon/types/app/bsky/embed/external'
+import { Post } from './db/schema'
+import { PostProperties } from './util/properties'
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleOps(ops: OperationsByType) {
@@ -66,7 +70,16 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           createdAt = batchProcessDate
         }
 
-        return {
+        let properties: PostProperties = {
+          has_link:
+            create.record.facets?.some(
+              facet =>
+                facet.features.some(feature =>
+                  isLink(feature)))
+            || create.record.embed && isExternalEmbed(create.record.embed.$type)
+        }
+
+        let newVar: Post = {
           uri: create.uri,
           cid: create.cid,
           author_did: create.author,
@@ -75,8 +88,10 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           indexed_at: createdAt,
           num_likes: 0,
           num_replies: 0,
-          num_reposts: 0
+          num_reposts: 0,
+          properties: JSON.stringify(properties),
         }
+        return newVar
       })
 
     let postsToUpdateReplyCounts = ops.posts.creates

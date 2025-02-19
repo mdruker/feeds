@@ -11,7 +11,7 @@ import { AppContext, Config } from './config'
 import wellKnown from './well-known'
 import testing from './web/pages/testing'
 import { createOauthClient } from './web/oauth/client'
-import { loginRouter } from './web/handlers'
+import { webRouter } from './web/handlers'
 import path from 'node:path'
 
 export class FeedGenerator {
@@ -73,7 +73,7 @@ export class FeedGenerator {
     describeGenerator(server, ctx)
     app.use(server.xrpc.router)
     app.use(wellKnown(ctx))
-    app.use(loginRouter(ctx))
+    app.use(webRouter(ctx))
 
     app.use(testing(ctx))
 

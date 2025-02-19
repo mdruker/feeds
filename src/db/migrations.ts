@@ -142,3 +142,19 @@ migrations['005'] = {
     await db.schema.dropTable('feed_settings').execute()
   },
 }
+
+migrations['006'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('post')
+      .addColumn('properties', 'varchar')
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('post')
+      .dropColumn('properties')
+      .execute()
+  },
+}

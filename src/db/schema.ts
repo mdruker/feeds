@@ -40,6 +40,7 @@ export type Post = {
   num_likes: number
   num_replies: number
   num_reposts: number
+  properties: string | undefined
 }
 
 export type AuthSession = {
