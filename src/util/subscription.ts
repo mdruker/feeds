@@ -70,7 +70,7 @@ export abstract class FirehoseSubscriptionBase {
           console.log(`Lost a race to process a batch`)
         }
 
-        if (opsByType.opsProcessed >= 5000) {
+        if (opsByType.opsProcessed >= 3000) {
           let t1 = performance.now()
 
           let handledHere = false
