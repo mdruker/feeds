@@ -2,78 +2,87 @@
 <html>
 <head>
     <title>feeds.mdruker.app</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-    <div id="app">
-        <div class="card" id="login-view" style="display: none">
+<div class="container">
+    <!-- Login View -->
+    <div id="login-view" style="display: none">
+        <div class="card">
             <h1>feeds.mdruker.app - Bluesky feed settings</h1>
             <p>You need to log in with bsky.social to access your settings.</p>
             <form id="login-form">
                 <input
-                    type="text"
-                    name="handle"
-                    placeholder="Enter your handle (eg alice.bsky.social)"
-                    required
+                  id="login-handle"
+                  type="text"
+                  name="handle"
+                  placeholder="Enter your handle (eg alice.bsky.social)"
+                  required
                 />
-                <button type="submit">Log in</button>
+                <button type="submit" class="primary-button">Log in</button>
                 <p id="login-error" class="error"></p>
             </form>
         </div>
-
-        <div id="settings-view" style="display: none">
-            <header class="card header-card">
-                <div class="header-content">
-                    <div>
-                        <h1>feeds.mdruker.app - Bluesky feed settings</h1>
-                        <p class="user-info">Logged in as <span id="user-handle"></span></p>
-                    </div>
-                    <form id="logout-form">
-                        <button type="submit" class="secondary-button">Log out</button>
-                    </form>
-                </div>
-            </header>
-
-            <main class="card settings-card">
-                <h2>Feed Options</h2>
-                <form id="settings-form">
-                    <fieldset class="settings-group">
-                        <legend>Replies in the feed (experimental)</legend>
-                        <div class="radio-option">
-                            <input type="radio" id="include_replies_false" name="include_replies" value="false">
-                            <label for="include_replies_false">
-                                <strong>No replies</strong>
-                                <span class="description">Show only original posts in your feed</span>
-                            </label>
-                        </div>
-                        <div class="radio-option">
-                            <input type="radio" id="include_replies_true" name="include_replies" value="true">
-                            <label for="include_replies_true">
-                                <strong>Include replies</strong>
-                                <span class="description">Show both posts and replies in your feed</span>
-                            </label>
-                        </div>
-                    </fieldset>
-                    <fieldset class="settings-group">
-                        <legend>Posts per account</legend>
-                        <div class="radio-option">
-                            <input type="number" id="posts_per_account" name="posts_per_account" min="0" max="100">
-                            <label for="posts_per_account">
-                                <strong>Default number of posts per 24 hours</strong>
-                                <span class="description">How many of the most engaged posts to show per account</span>
-                            </label>
-                        </div>
-                    </fieldset>
-                    <div class="form-actions">
-                        <button type="submit" class="primary-button">Save Settings</button>
-                    </div>
-                </form>
-            </main>
-        </div>
     </div>
 
-    <div id="toast" class="toast"></div>
+    <!-- Settings View -->
+    <div id="settings-view" style="display: none">
+        <!-- Header -->
+        <div class="card">
+            <div class="header-content">
+                <div>
+                    <h1>feeds.mdruker.app - Bluesky feed settings</h1>
+                    <p class="user-info">Logged in as <span id="user-handle"></span></p>
+                </div>
+                <form id="logout-form">
+                    <button type="submit" class="secondary-button">Log out</button>
+                </form>
+            </div>
+        </div>
 
-    <script src="/app.js"></script>
+        <!-- Settings -->
+        <div class="card">
+            <form id="settings-form">
+                <fieldset class="settings-group">
+                    <legend>Replies in the feed (experimental)</legend>
+
+                    <div class="radio-option">
+                        <input type="radio" id="include_replies_false" name="include_replies" value="false">
+                        <label for="include_replies_false">
+                            <strong>No replies</strong>
+                            <span class="description">Show only original posts in your feed</span>
+                        </label>
+                    </div>
+
+                    <div class="radio-option">
+                        <input type="radio" id="include_replies_true" name="include_replies" value="true">
+                        <label for="include_replies_true">
+                            <strong>Include replies</strong>
+                            <span class="description">Show both posts and replies in your feed</span>
+                        </label>
+                    </div>
+                </fieldset>
+                <fieldset class="settings-group">
+                    <legend>Posts per account</legend>
+                    <div class="radio-option">
+                        <input type="number" id="posts_per_account" name="posts_per_account" min="0" max="100">
+                        <label for="posts_per_account">
+                            <strong>Default number of posts per 24 hours</strong>
+                            <span class="description">How many of the most engaged posts to show per account</span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <button type="submit" class="primary-button">Save Settings</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+<script src="/app.js"></script>
 </body>
 </html>
