@@ -65,6 +65,14 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
     return properties.has_link
   })
 
+  posts.sort((a, b) => {
+    let indexedAtDiff = new Date(b.indexed_at).getTime() - new Date(a.indexed_at).getTime()
+    if (indexedAtDiff != 0) {
+      return indexedAtDiff
+    }
+    return b.cid.localeCompare(a.cid)
+  })
+
   // Apply the cursor only after so we're relatively consistently calculating the posts needed.
   if (params.cursor) {
     let strings = params.cursor.split(':')
