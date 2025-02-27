@@ -158,3 +158,24 @@ migrations['006'] = {
       .execute()
   },
 }
+
+migrations['007'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('profile')
+      .addColumn('did', 'varchar', (col) => col.primaryKey())
+      .addColumn('handle', 'varchar')
+      .addColumn('updated_at', 'varchar', (col) => col.notNull())
+      .execute()
+
+    await db.schema
+      .createIndex('idx_profile_handle')
+      .on('profile')
+      .column('handle')
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable('profile').execute()
+  },
+}

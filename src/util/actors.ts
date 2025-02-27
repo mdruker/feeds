@@ -60,6 +60,8 @@ export async function populateActor(ctx: AppContext, requesterDid: string) {
       .execute()
   }
 
+
+
   await ctx.db
     .insertInto('actor')
     .values({

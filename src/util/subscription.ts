@@ -1,6 +1,6 @@
 import { ids } from '../lexicon/lexicons'
 import { Database } from '../db/database'
-import { Jetstream, CommitType, CommitEvent } from '@skyware/jetstream'
+import { Jetstream, CommitType, CommitEvent, IdentityEvent } from '@skyware/jetstream'
 import WebSocket from 'ws'
 import { Semaphore } from 'async-mutex'
 import Queue from 'yocto-queue'
@@ -18,7 +18,7 @@ export abstract class FirehoseSubscriptionBase {
 
   async run() {
     let lastSuccessfulCursor = await this.getCursor()
-    const eventQueue = new Queue<CommitEvent<any>>()
+    const eventQueue = new Queue<JetstreamEvent>()
 
     this.jetstream = new Jetstream({
       ws: WebSocket,
@@ -39,7 +39,20 @@ export abstract class FirehoseSubscriptionBase {
     })
 
     this.jetstream.on('commit', (event) => {
-      eventQueue.enqueue(event)
+
+      eventQueue.enqueue({
+        timeUs: event.time_us,
+        identityEvent: undefined,
+        commitEvent: event
+      })
+    })
+
+    this.jetstream.on('identity', (event) => {
+      eventQueue.enqueue({
+        timeUs: event.time_us,
+        identityEvent: event,
+        commitEvent: undefined
+      })
     })
 
     const processQueue = async () => {
@@ -58,7 +71,7 @@ export abstract class FirehoseSubscriptionBase {
         let batchRaceWon = false
         await semaphore.acquire().then(async ([value, release]) => {
           if (opsByType.opsProcessed === 0) {
-            console.log(`Starting firehose batch at time ${event.time_us}`)
+            console.log(`Starting firehose batch at time ${event.timeUs}`)
             t0 = performance.now()
           }
           addOpsByType(event, opsByType)
@@ -148,53 +161,70 @@ export abstract class FirehoseSubscriptionBase {
   }
 }
 
-function addOpsByType(event: CommitEvent<any>, opsByType: OperationsByType) {
-  const uri = `at://${event.did}/${event.commit.collection}/${event.commit.rkey}`
-  const collection = event.commit.collection
-
-  opsByType.cursor = event.time_us
+function addOpsByType(jetstreamEvent: JetstreamEvent, opsByType: OperationsByType) {
+  opsByType.cursor = jetstreamEvent.timeUs
   opsByType.opsProcessed++
 
-  if (event.commit.operation === CommitType.Update) {
-    return
-  }
+  if (jetstreamEvent.identityEvent) {
+    let event = jetstreamEvent.identityEvent
 
-  if (event.commit.operation === CommitType.Create) {
-    if (!event.commit.cid) return
+    opsByType.identityEvents.push({
+      did: event.identity.did,
+      handle: event.identity.handle
+    })
+  } else if (jetstreamEvent.commitEvent) {
+    let event = jetstreamEvent.commitEvent
 
-    const entry = {
-      uri,
-      cid: event.commit.cid.toString(),
-      author: event.did,
-      record: event.commit.record
-    }
+    const uri = `at://${event.did}/${event.commit.collection}/${event.commit.rkey}`
+    const collection = event.commit.collection
 
-    if (collection === ids.AppBskyFeedPost) {
-      opsByType.posts.creates.push(entry)
-    } else if (collection === ids.AppBskyFeedRepost) {
-      opsByType.reposts.creates.push(entry)
-    } else if (collection === ids.AppBskyFeedLike) {
-      opsByType.likes.creates.push(entry)
-    } else if (collection === ids.AppBskyGraphFollow) {
-      opsByType.follows.creates.push(entry)
-    } else {
+    if (event.commit.operation === CommitType.Update) {
       return
     }
-  }
 
-  if (event.commit.operation === CommitType.Delete) {
-    if (collection === ids.AppBskyFeedPost) {
-      opsByType.posts.deletes.push({ uri })
-    } else if (collection === ids.AppBskyFeedRepost) {
-      opsByType.reposts.deletes.push({ uri })
-    } else if (collection === ids.AppBskyFeedLike) {
-      opsByType.likes.deletes.push({ uri })
-    } else if (collection === ids.AppBskyGraphFollow) {
-      opsByType.follows.deletes.push({ uri })
-    } else {
-      return
+    if (event.commit.operation === CommitType.Create) {
+      if (!event.commit.cid) return
+
+      const entry = {
+        uri,
+        cid: event.commit.cid.toString(),
+        author: event.did,
+        record: event.commit.record
+      }
+
+      if (collection === ids.AppBskyFeedPost) {
+        opsByType.posts.creates.push(entry)
+      } else if (collection === ids.AppBskyFeedRepost) {
+        opsByType.reposts.creates.push(entry)
+      } else if (collection === ids.AppBskyFeedLike) {
+        opsByType.likes.creates.push(entry)
+      } else if (collection === ids.AppBskyGraphFollow) {
+        opsByType.follows.creates.push(entry)
+      } else {
+        return
+      }
+    }
+
+    if (event.commit.operation === CommitType.Delete) {
+      if (collection === ids.AppBskyFeedPost) {
+        opsByType.posts.deletes.push({ uri })
+      } else if (collection === ids.AppBskyFeedRepost) {
+        opsByType.reposts.deletes.push({ uri })
+      } else if (collection === ids.AppBskyFeedLike) {
+        opsByType.likes.deletes.push({ uri })
+      } else if (collection === ids.AppBskyGraphFollow) {
+        opsByType.follows.deletes.push({ uri })
+      } else {
+        return
+      }
     }
   }
+}
+
+type JetstreamEvent = {
+  timeUs: number
+  commitEvent: CommitEvent<any> | undefined
+  identityEvent: IdentityEvent | undefined
 }
 
 function opsByTypeClean() {
@@ -203,6 +233,7 @@ function opsByTypeClean() {
     reposts: { creates: [], deletes: [] },
     likes: { creates: [], deletes: [] },
     follows: { creates: [], deletes: [] },
+    identityEvents: [],
     cursor: undefined,
     opsProcessed: 0
   }
@@ -213,6 +244,7 @@ export type OperationsByType = {
   reposts: Operations<any>
   likes: Operations<any>
   follows: Operations<any>
+  identityEvents: IdentityOp[]
   cursor: number | undefined
   opsProcessed: number
 }
@@ -231,5 +263,10 @@ type CreateOp<T> = {
 
 type DeleteOp = {
   uri: string
+}
+
+type IdentityOp = {
+  did: string
+  handle: string | undefined
 }
 

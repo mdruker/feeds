@@ -8,6 +8,41 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleOps(ops: OperationsByType) {
     let batchProcessDate = new Date().toISOString()
 
+    let identityUpdateDids = ops.identityEvents
+      .filter(x => x.handle)
+      .map(x => x.did)
+
+    if (identityUpdateDids.length > 0) {
+      let res = await this.db
+        .selectFrom('profile')
+        .select('did')
+        .where('did', 'in', identityUpdateDids)
+        .execute()
+
+      let knownProfileDids = res.filter(x => x.did)
+
+      const profileUpdates = ops.identityEvents
+        .filter(x => knownProfileDids.includes(x))
+        .map(update => ({
+          did: update.did,
+          handle: update.handle,
+          updated_at: batchProcessDate
+        }))
+
+      if (profileUpdates.length > 0) {
+        await this.db
+          .insertInto('profile')
+          .values(profileUpdates)
+          .onConflict((oc) => oc
+            .column('did')
+            .doUpdateSet({
+              handle: (eb) => eb.ref('excluded.handle'),
+              updated_at: (eb) => eb.ref('excluded.updated_at')
+            }))
+          .execute()
+      }
+    }
+
     let actorResult = await this.db
       .selectFrom('actor')
       .select('did')

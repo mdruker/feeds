@@ -7,6 +7,7 @@ export type DatabaseSchema = {
   auth_state: AuthState
   admin: Admin
   feed_settings: FeedSettings
+  profile: Profile
 }
 
 export type SubState = {
@@ -69,3 +70,9 @@ export type FeedSettings = {
 }
 
 type SettingsJson = string
+
+export type Profile = {
+  did: string
+  handle: string | undefined
+  updated_at: string
+}
