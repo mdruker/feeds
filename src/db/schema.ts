@@ -1,3 +1,5 @@
+import { Generated } from 'kysely'
+
 export type DatabaseSchema = {
   sub_state: SubState
   actor: Actor
@@ -8,6 +10,7 @@ export type DatabaseSchema = {
   admin: Admin
   feed_settings: FeedSettings
   profile: Profile
+  job: Job
 }
 
 export type SubState = {
@@ -75,4 +78,15 @@ export type Profile = {
   did: string
   handle: string | undefined
   updated_at: string
+}
+
+export type Job = {
+  id: Generated<number>
+  type: string  
+  payload: string // JSON payload
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  owner_pid: string | null
+  created_at: string
+  updated_at: string
+  error: string | null
 }

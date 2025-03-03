@@ -13,22 +13,30 @@ import testing from './web/pages/testing'
 import { createOauthClient } from './web/oauth/client'
 import { webRouter } from './web/handlers'
 import path from 'node:path'
+import { JobManager } from './jobs/manager'
+import { JobWorker } from './jobs/worker'
 
 export class FeedGenerator {
   public app: express.Application
   public server: http.Server
   public db: Database
+  public jobManager: JobManager
+  public jobWorker: JobWorker
   public firehose: FirehoseSubscription
   public cfg: Config
 
   constructor(
     app: express.Application,
     db: Database,
+    jobManager: JobManager,
+    jobWorker: JobWorker,
     firehose: FirehoseSubscription,
     cfg: Config,
   ) {
     this.app = app
     this.db = db
+    this.jobManager = jobManager
+    this.jobWorker = jobWorker
     this.firehose = firehose
     this.cfg = cfg
   }
@@ -37,6 +45,8 @@ export class FeedGenerator {
     const app = express()
     const db = createDb(cfg.sqliteLocation)
     const firehose = new FirehoseSubscription(db)
+    const jobManager = new JobManager(db)
+    const jobWorker = new JobWorker(jobManager)
 
     const didCache = new MemoryCache()
     const didResolver = new DidResolver({
@@ -79,11 +89,12 @@ export class FeedGenerator {
 
     app.use((_req, res) => res.sendStatus(404))
 
-    return new FeedGenerator(app, db, firehose, cfg)
+    return new FeedGenerator(app, db, jobManager, jobWorker, firehose, cfg)
   }
 
   async start(): Promise<http.Server> {
     await migrateToLatest(this.db)
+    this.jobWorker.start()
     this.firehose.run()
     this.server = this.app.listen(this.cfg.port, this.cfg.listenhost, () => {
       console.log(`App listening on port ${this.cfg.port}`)
