@@ -1,10 +1,22 @@
 import { JobManager } from './manager'
-import { jobHandlers, JobTypes } from './handlers'
+import { jobHandlers, JobTypes, JobContext } from './handlers'
+import { Database } from '../db/database'
+import { DidResolver } from '@atproto/identity'
 
 const PROCESS_ID = `${process.env.FLY_MACHINE_ID || 'local'}:${process.pid}`
 
 export class JobWorker {
-  constructor(private jobManager: JobManager) {
+  constructor(
+    private jobManager: JobManager,
+    private db: Database,
+    private didResolver: DidResolver,
+  ) {}
+
+  private getContext(): JobContext {
+    return {
+      db: this.db,
+      didResolver: this.didResolver
+    }
   }
 
   async start() {
@@ -27,7 +39,8 @@ export class JobWorker {
           console.log(`Processing job ${job.id} of type ${job.type}`)
 
           try {
-            await jobHandlers.runHandler(job.type, job.payload)
+            const ctx = this.getContext()
+            await jobHandlers.runHandler(job.type, job.payload, ctx)
             await this.jobManager.completeJob(job.id)
           } catch (error) {
             console.error(`Error processing job ${job.id}:`, error)

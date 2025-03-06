@@ -45,15 +45,15 @@ export class FeedGenerator {
     const app = express()
     const db = createDb(cfg.sqliteLocation)
     const firehose = new FirehoseSubscription(db)
-    const jobManager = new JobManager(db)
-    const jobWorker = new JobWorker(jobManager)
-
     const didCache = new MemoryCache()
     const didResolver = new DidResolver({
       timeout: 20000,
       plcUrl: 'https://plc.directory',
       didCache,
     })
+
+    const jobManager = new JobManager(db)
+    const jobWorker = new JobWorker(jobManager, db, didResolver)
 
     const server = createServer({
       validateResponse: true,
@@ -70,7 +70,8 @@ export class FeedGenerator {
       db,
       didResolver,
       cfg,
-      oauthClient
+      oauthClient,
+      jobManager
     }
 
     app.use(express.json())
