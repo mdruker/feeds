@@ -158,3 +158,59 @@ migrations['006'] = {
       .execute()
   },
 }
+
+migrations['007'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('profile')
+      .addColumn('did', 'varchar', (col) => col.primaryKey())
+      .addColumn('handle', 'varchar')
+      .addColumn('updated_at', 'varchar', (col) => col.notNull())
+      .execute()
+
+    await db.schema
+      .createIndex('idx_profile_handle')
+      .on('profile')
+      .column('handle')
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable('profile').execute()
+  },
+}
+
+migrations['008'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('job')
+      .addColumn('id', 'integer', (col) => col.primaryKey().autoIncrement())
+      .addColumn('type', 'varchar', (col) => col.notNull())
+      .addColumn('payload', 'varchar', (col) => col.notNull())
+      .addColumn('status', 'varchar', (col) => col.notNull())
+      .addColumn('owner_pid', 'varchar')
+      .addColumn('created_at', 'varchar', (col) => col.notNull())
+      .addColumn('updated_at', 'varchar', (col) => col.notNull())
+      .addColumn('error', 'varchar')
+      .execute()
+
+    await db.schema
+      .createIndex('idx_job_status_created_at')
+      .on('job')
+      .column('status')
+      .column('type')
+      .column('created_at')
+      .execute()
+
+    await db.schema
+      .createIndex('idx_job_status_updated_at')
+      .on('job')
+      .column('status')
+      .column('updated_at')
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema.dropTable('job').execute()
+  },
+}

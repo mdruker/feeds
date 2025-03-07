@@ -60,6 +60,8 @@ export async function populateActor(ctx: AppContext, requesterDid: string) {
       .execute()
   }
 
+  await ctx.jobManager.createJob('fetch-follow-profiles', { 'did': requesterDid })
+
   await ctx.db
     .insertInto('actor')
     .values({

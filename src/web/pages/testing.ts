@@ -43,6 +43,22 @@ const makeRouter = (ctx: AppContext) => {
     }
   })
 
+  router.get('/jobs/fetch-follow-profiles/:did', async (_req, res, next) => {
+    console.log(`Adding fetch-follow-profiles job for ${_req.params.did}`)
+
+    if (!(await hasAdminPermission(_req, res, ctx))) {
+      return res
+        .status(403)
+        .type('html')
+        .send('<h1>Error: admin permission required</h1>')
+    }
+
+    await ctx.jobManager.createJob('fetch-follow-profiles', { 'did': _req.params.did })
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send('Success: job created');
+  })
+
   router.get('/showTimeline/:handle', async (_req, res, next) => {
     console.log(`handling /showTimeline for ${_req.params.handle}`)
 
