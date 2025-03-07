@@ -62,7 +62,6 @@ jobHandlers.register({
     let newProfiles: Profile[] = []
 
     for (const follow of follows) {
-
       let resolvedDid = await ctx.didResolver.resolve(follow.target_did)
 
       let alsoKnownAs = resolvedDid?.alsoKnownAs?.at(0)
@@ -77,6 +76,10 @@ jobHandlers.register({
         'handle': handle,
         'updated_at': new Date().toISOString()
       })
+
+      if (newProfiles.length % 100 === 0) {
+        console.log(`Fetched ${newProfiles.length} follow profiles for ${payload.did}`)
+      }
     }
 
     if (newProfiles.length > 0) {
