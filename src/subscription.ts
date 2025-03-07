@@ -19,10 +19,10 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .where('did', 'in', identityUpdateDids)
         .execute()
 
-      let knownProfileDids = res.filter(x => x.did)
+      let knownProfileDids = res.map(x => x.did)
 
       const profileUpdates = ops.identityEvents
-        .filter(x => knownProfileDids.includes(x))
+        .filter(x => knownProfileDids.includes(x.did))
         .map(update => ({
           did: update.did,
           handle: update.handle,
