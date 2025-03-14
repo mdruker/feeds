@@ -59,16 +59,30 @@ jobHandlers.register({
       .execute()
 
     const atPrefix = 'at://'
+    const didWebPrefix = 'did:web:'
     let newProfiles: Profile[] = []
+    let failedFetches = 0
 
     for (const follow of follows) {
-      let resolvedDid = await ctx.didResolver.resolve(follow.target_did)
+      let resolvedDid
+      try {
+        resolvedDid = await ctx.didResolver.resolve(follow.target_did)
+      } catch (err) {
+        console.log(`Error resolving did: ${follow.target_did}`, err)
+        failedFetches++
+      }
+
+      if (failedFetches > 20) {
+        throw Error('Too many failed fetches')
+      }
 
       let alsoKnownAs = resolvedDid?.alsoKnownAs?.at(0)
       let handle: string | undefined
 
       if (alsoKnownAs?.startsWith(atPrefix)) {
         handle = alsoKnownAs.slice(atPrefix.length)
+      } else if (follow.target_did.startsWith('did:web:')) {
+        handle = follow.target_did.slice(didWebPrefix.length)
       }
 
       newProfiles.push({
