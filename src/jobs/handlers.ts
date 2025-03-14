@@ -80,17 +80,25 @@ jobHandlers.register({
       if (newProfiles.length % 100 === 0) {
         console.log(`Fetched ${newProfiles.length} follow profiles for ${payload.did}`)
       }
+      if (newProfiles.length % 1000 === 0) {
+        await insertProfiles(newProfiles)
+        newProfiles = []
+      }
     }
 
     if (newProfiles.length > 0) {
+      await insertProfiles(newProfiles)
+    }
+
+    async function insertProfiles(profiles: Profile[]) {
       await ctx.db
         .insertInto('profile')
-        .values(newProfiles)
+        .values(profiles)
         .onConflict((oc) => oc
           .column('did')
           .doUpdateSet({
             handle: (eb) => eb.ref('excluded.handle'),
-            updated_at: (eb) => eb.ref('excluded.updated_at')
+            updated_at: (eb) => eb.ref('excluded.updated_at'),
           }))
         .execute()
     }
