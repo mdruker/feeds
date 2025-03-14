@@ -77,17 +77,16 @@ jobHandlers.register({
         'updated_at': new Date().toISOString()
       })
 
-      if (newProfiles.length % 100 === 0) {
-        console.log(`Fetched ${newProfiles.length} follow profiles for ${payload.did}`)
-      }
       if (newProfiles.length % 1000 === 0) {
         await insertProfiles(newProfiles)
+        console.log(`Inserted ${newProfiles.length} profiles for ${payload.did}`)
         newProfiles = []
       }
     }
 
     if (newProfiles.length > 0) {
       await insertProfiles(newProfiles)
+      console.log(`Inserted ${newProfiles.length} profiles for ${payload.did}`)
     }
 
     async function insertProfiles(profiles: Profile[]) {
