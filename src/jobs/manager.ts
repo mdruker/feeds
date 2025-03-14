@@ -1,6 +1,8 @@
 import { Database } from '../db/database'
-import { Insertable } from 'kysely'
+import { Insertable, Selectable } from 'kysely'
 import { Job } from '../db/schema'
+
+const MAX_HANDLE_ATTEMPTS = 10
 
 export class JobManager {
   constructor(private db: Database) {}
@@ -15,6 +17,7 @@ export class JobManager {
       created_at: now.toISOString(),
       updated_at: now.toISOString(),
       error: null,
+      failure_count: 0
     }
 
     const result = await this.db
@@ -26,9 +29,9 @@ export class JobManager {
     return result?.id
   }
 
-  async claimNextJob(processId: string, jobTypes: string[]) {
+  async claimNextJob(processId: string, jobTypes: string[]): Promise<Selectable<Job> | null> {
     // Claim the next available job atomically
-    const result = await this.db.transaction().execute(async (trx) => {
+    return await this.db.transaction().execute(async (trx) => {
       const job = await trx
         .selectFrom('job')
         .where('status', '=', 'pending')
@@ -52,25 +55,33 @@ export class JobManager {
 
       return job
     })
-
-    if (!result) return null
-
-    return {
-      ...result,
-      payload: JSON.parse(result.payload),
-    }
   }
 
-  async completeJob(jobId: number, error?: string) {
+  async completeJob(job: Selectable<Job>, error?: string) {
+    let status = job.status
+    let failureCount = job.failure_count
+    if (!error) {
+      status = 'completed'
+    } else {
+      failureCount = failureCount + 1
+
+      if (failureCount >= MAX_HANDLE_ATTEMPTS) {
+        status = 'failed'
+      } else {
+        status = 'pending'
+      }
+    }
+
     await this.db
       .updateTable('job')
-      .where('id', '=', jobId)
-      .set({
-        status: error ? 'failed' : 'completed',
+      .where('id', '=', job.id)
+      .set((eb) => ({
+        status: status,
         error: error || null,
         updated_at: new Date().toISOString(),
         owner_pid: null,
-      })
+        failure_count: failureCount
+      }))
       .execute()
   }
 

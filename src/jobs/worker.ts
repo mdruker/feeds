@@ -40,11 +40,11 @@ export class JobWorker {
 
           try {
             const ctx = this.getContext()
-            await jobHandlers.runHandler(job.type, job.payload, ctx)
-            await this.jobManager.completeJob(job.id)
+            await jobHandlers.runHandler(job.type, JSON.parse(job.payload), ctx)
+            await this.jobManager.completeJob(job)
           } catch (error) {
             console.error(`Error processing job ${job.id}:`, error)
-            await this.jobManager.completeJob(job.id, error instanceof Error ? error.message : String(error))
+            await this.jobManager.completeJob(job, error instanceof Error ? error.message : String(error))
           }
         } catch (error) {
           console.error('Job worker error:', error)

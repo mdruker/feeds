@@ -214,3 +214,19 @@ migrations['008'] = {
     await db.schema.dropTable('job').execute()
   },
 }
+
+migrations['009'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('job')
+      .addColumn('failure_count', 'integer', (col) => col.notNull().defaultTo(0))
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('job')
+      .dropColumn('failure_count')
+      .execute()
+  },
+}
