@@ -1,21 +1,23 @@
 import { Database } from '../db/database'
 import { Insertable, Selectable } from 'kysely'
 import { Job } from '../db/schema'
+import { run } from 'node:test'
 
 const MAX_HANDLE_ATTEMPTS = 10
+const SECONDS_BACKOFF_AFTER_FAILURE = [5, 10, 30, 60, 120, 120, 120, 120, 120, 120]
 
 export class JobManager {
   constructor(private db: Database) {}
 
   async createJob(type: string, payload: any) {
-    const now = new Date()
+    let now = new Date().toISOString()
     const insertData: Insertable<Job> = {
       type,
       payload: JSON.stringify(payload),
       status: 'pending',
       owner_pid: null,
-      created_at: now.toISOString(),
-      updated_at: now.toISOString(),
+      created_at: now,
+      updated_at: now,
       error: null,
       failure_count: 0
     }
@@ -36,6 +38,9 @@ export class JobManager {
         .selectFrom('job')
         .where('status', '=', 'pending')
         .where('type', 'in', jobTypes)
+        .where((eb) =>
+          eb('run_after', 'is', null).or('run_after', '<', new Date().toISOString())
+        )
         .orderBy('created_at', 'asc')
         .limit(1)
         .selectAll()
@@ -60,6 +65,7 @@ export class JobManager {
   async completeJob(job: Selectable<Job>, error?: string) {
     let status = job.status
     let failureCount = job.failure_count
+    let runAfter: string | null = null
     if (!error) {
       status = 'completed'
     } else {
@@ -69,6 +75,10 @@ export class JobManager {
         status = 'failed'
       } else {
         status = 'pending'
+        let date = new Date()
+        let backoffSeconds = SECONDS_BACKOFF_AFTER_FAILURE.at(failureCount) || 120
+        date.setSeconds(date.getSeconds() + backoffSeconds)
+        runAfter = date.toISOString()
       }
     }
 
@@ -80,7 +90,8 @@ export class JobManager {
         error: error || null,
         updated_at: new Date().toISOString(),
         owner_pid: null,
-        failure_count: failureCount
+        failure_count: failureCount,
+        run_after: runAfter
       }))
       .execute()
   }
@@ -98,28 +109,6 @@ export class JobManager {
         owner_pid: null,
         updated_at: now.toISOString(),
       })
-      .execute()
-  }
-
-  async getJobById(jobId: number) {
-    const job = await this.db
-      .selectFrom('job')
-      .where('id', '=', jobId)
-      .selectAll()
-      .executeTakeFirst()
-
-    if (!job) return null
-
-    return {
-      ...job,
-      payload: JSON.parse(job.payload),
-    }
-  }
-
-  async deleteJob(jobId: number) {
-    await this.db
-      .deleteFrom('job')
-      .where('id', '=', jobId)
       .execute()
   }
 }

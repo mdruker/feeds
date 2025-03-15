@@ -90,4 +90,5 @@ export type Job = {
   updated_at: string
   error: string | null
   failure_count: number
+  run_after: string | null
 }

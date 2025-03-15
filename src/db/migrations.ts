@@ -230,3 +230,32 @@ migrations['009'] = {
       .execute()
   },
 }
+
+migrations['010'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('job')
+      .addColumn('run_after', 'varchar')
+      .execute()
+
+    await db.schema
+      .createIndex('idx_job_status_type_run_after_created_at')
+      .on('job')
+      .column('status')
+      .column('type')
+      .column('run_after')
+      .column('created_at')
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('job')
+      .dropColumn('run_after')
+      .execute()
+
+    await db.schema
+      .dropIndex('idx_job_status_type_run_after_created_at')
+      .execute()
+  },
+}
