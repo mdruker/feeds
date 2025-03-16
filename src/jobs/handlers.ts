@@ -58,17 +58,21 @@ jobHandlers.register({
       .where('profile.handle', 'is', null)
       .execute()
 
+    let dids = follows.map(follow => follow.target_did)
+    // Look up the acting account too
+    dids.push(payload.did)
+
     const atPrefix = 'at://'
     const didWebPrefix = 'did:web:'
     let newProfiles: Profile[] = []
     let failedFetches = 0
 
-    for (const follow of follows) {
+    for (const did of dids) {
       let resolvedDid
       try {
-        resolvedDid = await ctx.didResolver.resolve(follow.target_did)
+        resolvedDid = await ctx.didResolver.resolve(did)
       } catch (err) {
-        console.log(`Error resolving did: ${follow.target_did}`, err)
+        console.log(`Error resolving did: ${did}`, err)
         failedFetches++
       }
 
@@ -81,12 +85,12 @@ jobHandlers.register({
 
       if (alsoKnownAs?.startsWith(atPrefix)) {
         handle = alsoKnownAs.slice(atPrefix.length)
-      } else if (follow.target_did.startsWith('did:web:')) {
-        handle = follow.target_did.slice(didWebPrefix.length)
+      } else if (did.startsWith('did:web:')) {
+        handle = did.slice(didWebPrefix.length)
       }
 
       newProfiles.push({
-        'did': follow.target_did,
+        'did': did,
         'handle': handle,
         'updated_at': new Date().toISOString()
       })
