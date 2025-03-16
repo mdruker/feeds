@@ -259,3 +259,19 @@ migrations['010'] = {
       .execute()
   },
 }
+
+migrations['011'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('actor')
+      .dropColumn('handle')
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('actor')
+      .addColumn('handle', 'varchar', (col) => col.notNull())
+      .execute()
+  },
+}

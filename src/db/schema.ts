@@ -21,7 +21,6 @@ export type SubState = {
 
 export type Actor = {
   did: string
-  handle: string
   created_at: string
 }
 

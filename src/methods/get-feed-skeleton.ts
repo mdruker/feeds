@@ -32,14 +32,14 @@ export default function (server: Server, ctx: AppContext) {
       let t0 = performance.now()
       const body = await algo(ctx, params, requesterDid)
 
-      let actor = await ctx.db
-        .selectFrom('actor')
+      let profile = await ctx.db
+        .selectFrom('profile')
         .select('handle')
         .where('did', '=', requesterDid)
         .executeTakeFirst()
 
       let t1 = performance.now()
-      console.log(`Returning ${body.feed.length} posts in ${Math.round(t1-t0)} ms for ${feedUri.rkey} for ${requesterDid} (${actor?.handle})`)
+      console.log(`Returning ${body.feed.length} posts in ${Math.round(t1-t0)} ms for ${feedUri.rkey} for ${requesterDid} (${profile?.handle})`)
 
       return {
         encoding: 'application/json',

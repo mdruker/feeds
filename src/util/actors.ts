@@ -66,7 +66,6 @@ export async function populateActor(ctx: AppContext, requesterDid: string) {
     .insertInto('actor')
     .values({
       did: requesterDid,
-      handle: actorResponse.data.handle,
       created_at: new Date().toISOString(),
     })
     .onConflict((oc) => oc.doNothing())
