@@ -6,6 +6,8 @@ import { run } from 'node:test'
 const MAX_HANDLE_ATTEMPTS = 10
 const SECONDS_BACKOFF_AFTER_FAILURE = [5, 10, 30, 60, 120, 120, 120, 120, 120, 120]
 
+const HOURS_TO_KEEP_COMPLETED_JOBS = 48
+
 export class JobManager {
   constructor(private db: Database) {}
 
@@ -109,6 +111,18 @@ export class JobManager {
         owner_pid: null,
         updated_at: now.toISOString(),
       })
+      .execute()
+  }
+
+
+  async deleteOldJobs() {
+    const now = new Date()
+    let cutOffDate = now
+    cutOffDate.setHours(now.getHours() - HOURS_TO_KEEP_COMPLETED_JOBS)
+    await this.db
+      .deleteFrom('job')
+      .where('status', 'in', ['completed', 'failed'])
+      .where('updated_at', '<', cutOffDate.toISOString())
       .execute()
   }
 }

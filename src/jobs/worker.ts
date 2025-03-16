@@ -28,6 +28,7 @@ export class JobWorker {
         try {
           // This isn't efficient, but if we have few jobs, this doesn't run too often
           await this.jobManager.releaseOrphanedJobs()
+          await this.jobManager.deleteOldJobs()
 
           const job = await this.jobManager.claimNextJob(PROCESS_ID, jobTypes)
           if (!job) {
@@ -56,13 +57,4 @@ export class JobWorker {
     console.log(`Starting job manager.`)
     await handlePendingJobs()
   }
-}
-
-// Helper function to create a strongly typed job
-export async function createJob<T extends keyof JobTypes>(
-  jobManager: JobManager,
-  type: T,
-  payload: JobTypes[T],
-) {
-  return jobManager.createJob(type, payload)
 }
