@@ -185,6 +185,15 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
 
+    let postsToDelete = ops.posts.deletes
+      .map((x) => x.uri)
+    if (postsToDelete.length > 0) {
+      await this.db
+        .deleteFrom('post')
+        .where('uri', 'in', postsToDelete)
+        .execute()
+    }
+
     ops.reposts.creates
       .map((x) => {
         if (ops.reposts.creates.length % 500 === 0) {
@@ -218,12 +227,12 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
 
-    let postsToDelete = ops.posts.deletes
+    let repostsToDelete = ops.reposts.deletes
       .map((x) => x.uri)
-    if (postsToDelete.length > 0) {
+    if (repostsToDelete.length > 0) {
       await this.db
-        .deleteFrom('post')
-        .where('uri', 'in', postsToDelete)
+        .deleteFrom('repost')
+        .where('uri', 'in', repostsToDelete)
         .execute()
     }
 
