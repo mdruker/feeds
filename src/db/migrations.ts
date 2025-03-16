@@ -275,3 +275,37 @@ migrations['011'] = {
       .execute()
   },
 }
+
+migrations['012'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('repost')
+      .addColumn('uri', 'varchar', (col) => col.primaryKey())
+      .addColumn('cid', 'varchar', (col) => col.notNull())
+      .addColumn('author_did', 'varchar', (col) => col.notNull())
+      .addColumn('post_uri', 'varchar', (col) => col.notNull())
+      .addColumn('indexed_at', 'varchar', (col) => col.notNull())
+      .execute()
+    await db.schema
+      .createIndex('idx_repost_indexed_at')
+      .on('repost')
+      .column('indexed_at')
+      .execute()
+    await db.schema
+      .createIndex('idx_repost_post_uri_indexed_at')
+      .on('repost')
+      .columns(['post_uri', 'indexed_at'])
+      .execute()
+    await db.schema
+      .createIndex('idx_repost_author_indexed_at')
+      .on('repost')
+      .columns(['author_did', 'indexed_at'])
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema
+      .dropTable('repost')
+      .execute()
+  },
+}

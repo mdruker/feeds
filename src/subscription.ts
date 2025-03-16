@@ -1,7 +1,7 @@
 import { FirehoseSubscriptionBase, OperationsByType } from './util/subscription'
 import { isLink } from './lexicon/types/app/bsky/richtext/facet'
 import { isMain as isExternalEmbed } from './lexicon/types/app/bsky/embed/external'
-import { Post } from './db/schema'
+import { Post, Repost } from './db/schema'
 import { PostProperties } from './util/properties'
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
@@ -185,6 +185,39 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
 
+    ops.reposts.creates
+      .map((x) => {
+        if (ops.reposts.creates.length % 500 === 0) {
+          console.log('here')
+        }
+      })
+
+    let repostsToCreate = ops.reposts.creates
+      .filter(create => new Date(create.record.createdAt) > archivedPostCutoff)
+      .map((create) => {
+        let createdAt = new Date(create.record.createdAt).toISOString()
+        if (batchProcessDate < createdAt) {
+          // Future-dated records shouldn't go to the top of the feed.
+          createdAt = batchProcessDate
+        }
+
+        let newVar: Repost = {
+          uri: create.uri,
+          cid: create.cid,
+          author_did: create.author,
+          post_uri: create.record.subject.uri,
+          indexed_at: createdAt,
+        }
+        return newVar
+      })
+    if (repostsToCreate.length > 0) {
+      await this.db
+        .insertInto('repost')
+        .values(repostsToCreate)
+        .onConflict((oc) => oc.doNothing())
+        .execute()
+    }
+
     let postsToDelete = ops.posts.deletes
       .map((x) => x.uri)
     if (postsToDelete.length > 0) {
@@ -194,7 +227,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
 
-    console.log(`${ops.posts.creates.length} posts created, ${postsToDelete.length} post deletes, ${followsToCreate.length} follows added, ${followsDeleted} follows deleted, ${ops.follows.creates.length} total new follows`)
+    console.log(`${ops.posts.creates.length} posts created, ${postsToDelete.length} post deletes, ${ops.reposts.creates.length} reposts created, ${followsToCreate.length} follows added, ${followsDeleted} follows deleted, ${ops.follows.creates.length} total new follows`)
 
     // Not part of the firehose, but we want to delete stuff that's too old.
     let cutOffDate = new Date()

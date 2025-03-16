@@ -11,6 +11,7 @@ export type DatabaseSchema = {
   feed_settings: FeedSettings
   profile: Profile
   job: Job
+  repost: Repost
 }
 
 export type SubState = {
@@ -90,4 +91,12 @@ export type Job = {
   error: string | null
   failure_count: number
   run_after: string | null
+}
+
+export type Repost = {
+  uri: string
+  cid: string
+  author_did: string
+  post_uri: string
+  indexed_at: string
 }
