@@ -6,10 +6,18 @@ import { AtUri } from '@atproto/syntax'
 export type CatchupSettings = {
   include_replies: boolean | undefined
   posts_per_account: number | undefined
+  repost_percent: number | undefined
+}
+
+type FeedEntry = {
+  uri: string
+  cid: string
+  indexed_at: string
 }
 
 const DEFAULT_INCLUDE_REPLIES = false
 const DEFAULT_POSTS_PER_ACCOUNT = 2
+const DEFAULT_REPOST_PERCENT = 0
 
 export async function getSettingsWithDefaults(ctx: AppContext, requesterDid: string): Promise<CatchupSettings> {
   let settingsResult = await ctx.db
@@ -19,12 +27,13 @@ export async function getSettingsWithDefaults(ctx: AppContext, requesterDid: str
     .where('shortname', '=', 'catchup')
     .executeTakeFirst()
   let settingsJson = settingsResult?.settings
-  let settings = settingsJson ? JSON.parse(settingsJson) as CatchupSettings: undefined
+  let settings = settingsJson ? JSON.parse(settingsJson) as CatchupSettings : undefined
 
   return {
     include_replies: DEFAULT_INCLUDE_REPLIES,
     posts_per_account: DEFAULT_POSTS_PER_ACCOUNT,
-    ...settings
+    repost_percent: DEFAULT_REPOST_PERCENT,
+    ...settings,
   }
 }
 
@@ -35,13 +44,13 @@ export async function updateSettings(ctx: AppContext, actorDid: string, settings
 
   await ctx.db
     .insertInto('feed_settings')
-    .values( {
+    .values({
       actor_did: actorDid,
       shortname: 'catchup',
       settings: settingsJson,
       updated_at: new Date().toISOString(),
     })
-    .onConflict((oc) => oc.doUpdateSet( { settings: settingsJson, updated_at: new Date().toISOString() }))
+    .onConflict((oc) => oc.doUpdateSet({ settings: settingsJson, updated_at: new Date().toISOString() }))
     .execute()
 }
 
@@ -73,7 +82,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
       'follow',
       (join) => join
         .onRef('follow.target_did', '=', 'post.author_did')
-        .on('follow.source_did', '=', requesterDid)
+        .on('follow.source_did', '=', requesterDid),
     )
     .select(['post.uri', 'post.cid', 'post.indexed_at', 'post.author_did', 'post.num_likes', 'post.num_reposts', 'post.num_replies', 'post.reply_parent_uri', 'post.reply_root_uri'])
     .execute()
@@ -110,7 +119,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
 
   let followsMap = new Map(follows.map((x) => [x.target_did, x]))
 
-  let posts = Map.groupBy(res, (item, index) => {
+  let posts: FeedEntry[] = Map.groupBy(res, (item, index) => {
     return item.author_did
   }).entries().map((entry) => {
     let follow = followsMap.get(entry[0])
@@ -118,10 +127,80 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
       return []
     }
     let postsPerAccount = settings.posts_per_account || DEFAULT_POSTS_PER_ACCOUNT
-    return entry[1].slice(0, Math.max(0, follow.actor_score + postsPerAccount))
+    return entry[1]
+      .slice(0, Math.max(0, follow.actor_score + postsPerAccount))
+      .map(x => {
+        return {
+          uri: x.uri,
+          indexed_at: x.indexed_at,
+          cid: x.cid,
+        }
+      })
   }).toArray().flat()
 
   nonProductionLog(`Filtered top posts at ${Math.round(performance.now() - t0)}`)
+
+  let repostPercent = settings.repost_percent || DEFAULT_REPOST_PERCENT
+  let maxReposts = Math.round(posts.length * repostPercent / (100 - repostPercent))
+
+  // Reposts by people you follow
+  let repostRes = await ctx.db
+    .selectFrom('repost')
+    .innerJoin(
+      'follow',
+      (join) => join
+        .onRef('follow.target_did', '=', 'repost.author_did')
+        .on('follow.source_did', '=', requesterDid),
+    )
+    .select(['repost.uri', 'repost.cid', 'repost.indexed_at', 'repost.author_did', 'repost.post_uri'])
+    .execute()
+
+  nonProductionLog(`Queried reposts at ${Math.round(performance.now() - t0)}`)
+
+  // It's apparently faster to do this filtering in the application layer.
+  repostRes = repostRes.filter((x) => {
+    return x.indexed_at > cutOffDate.toISOString() && x.indexed_at < oldEnoughDate.toISOString()
+  })
+
+  let reposts = Map.groupBy(repostRes, (item, index) => {
+    return item.post_uri
+  }).entries().toArray()
+
+  reposts.sort((a, b) => {
+    if (a[1].length != b[1].length) {
+      return b[1].length - a[1].length
+    }
+    // This isn't meaningful, but the sort should be predictable.
+    return b[0].localeCompare(a[0])
+  })
+
+  nonProductionLog(`Sorted reposts at ${Math.round(performance.now() - t0)}`)
+
+  nonProductionLog(`Filtering ${reposts.length} reposts with max ${maxReposts}`)
+
+  reposts = reposts.slice(0, maxReposts)
+
+  let repostArray: FeedEntry[] = reposts.map((entry) => {
+    // TODO: this could be more efficient, we just need the earliest repost, not a whole sort
+    entry[1].sort((a, b) => {
+      let indexedAtDiff = new Date(b.indexed_at).getTime() - new Date(a.indexed_at).getTime()
+      if (indexedAtDiff != 0) {
+        return indexedAtDiff
+      }
+      return b.cid.localeCompare(a.cid)
+    })
+    let repost = entry[1].at(0)!
+    return {
+      // Custom feeds can't show a repost so this needs to be the reposted post itself...
+      uri: repost.post_uri,
+      cid: repost.cid,
+      indexed_at: repost.indexed_at,
+    }
+  })
+
+  nonProductionLog(`Processed reposts at ${Math.round(performance.now() - t0)}`)
+
+  posts.push(...repostArray)
 
   // Now sort again in descending order by date and CID as in the original sort
   posts.sort((a, b) => {
@@ -139,11 +218,11 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     let strings = params.cursor.split(':')
     const timeStr = new Date(parseInt(strings[0], 10)).toISOString()
 
-    let cursorCid: string = strings.length == 2 ? strings[1] : ""
+    let cursorCid: string = strings.length == 2 ? strings[1] : ''
 
     posts = posts.filter((x) =>
       x.indexed_at < timeStr ||
-      x.indexed_at === timeStr && x.cid < cursorCid
+      x.indexed_at === timeStr && x.cid < cursorCid,
     )
   }
 

@@ -114,7 +114,6 @@ export class JobManager {
       .execute()
   }
 
-
   async deleteOldJobs() {
     const now = new Date()
     let cutOffDate = now
