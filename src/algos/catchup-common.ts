@@ -144,6 +144,8 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
 
   nonProductionLog(`Filtered top posts at ${Math.round(performance.now() - t0)}`)
 
+  let postUris = new Set(posts.map((post) => post.uri))
+
   let repostPercent = settings.repost_percent || DEFAULT_REPOST_PERCENT
   let maxReposts = Math.round(posts.length * repostPercent / (100 - repostPercent))
 
@@ -164,10 +166,13 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
 
   nonProductionLog(`Queried reposts at ${Math.round(performance.now() - t0)}`)
 
-  // It's apparently faster to do this filtering in the application layer.
-  repostRes = repostRes.filter((x) => {
-    return x.indexed_at > cutOffDate.toISOString() && x.indexed_at < oldEnoughDate.toISOString()
-  })
+  repostRes = repostRes
+    // It's apparently faster to do this filtering in the application layer.
+    .filter((x) => {
+      return x.indexed_at > cutOffDate.toISOString() && x.indexed_at < oldEnoughDate.toISOString()
+    })
+    // Don't show reposts of posts we'd already show
+    .filter((x) => !postUris.has(x.post_uri))
 
   let reposts = Map.groupBy(repostRes, (item, index) => {
     return item.post_uri
