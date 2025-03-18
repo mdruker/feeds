@@ -2,6 +2,8 @@ import { AppContext } from '../config'
 import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { nonProductionLog } from '../lib/env'
 import { AtUri } from '@atproto/syntax'
+import * as AppBskyFeedDefs from '../lexicon/types/app/bsky/feed/defs'
+import { SkeletonReasonRepost } from '../lexicon/types/app/bsky/feed/defs'
 
 export type CatchupSettings = {
   include_replies: boolean | undefined
@@ -13,6 +15,7 @@ type FeedEntry = {
   uri: string
   cid: string
   indexed_at: string
+  repost_uri: string | undefined
 }
 
 const DEFAULT_INCLUDE_REPLIES = false
@@ -134,6 +137,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
           uri: x.uri,
           indexed_at: x.indexed_at,
           cid: x.cid,
+          repost_uri: undefined
         }
       })
   }).toArray().flat()
@@ -144,16 +148,19 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   let maxReposts = Math.round(posts.length * repostPercent / (100 - repostPercent))
 
   // Reposts by people you follow
-  let repostRes = await ctx.db
-    .selectFrom('repost')
-    .innerJoin(
-      'follow',
-      (join) => join
-        .onRef('follow.target_did', '=', 'repost.author_did')
-        .on('follow.source_did', '=', requesterDid),
-    )
-    .select(['repost.uri', 'repost.cid', 'repost.indexed_at', 'repost.author_did', 'repost.post_uri'])
-    .execute()
+  let repostRes =
+    maxReposts === 0
+      ? []
+      : await ctx.db
+        .selectFrom('repost')
+        .innerJoin(
+          'follow',
+          (join) => join
+            .onRef('follow.target_did', '=', 'repost.author_did')
+            .on('follow.source_did', '=', requesterDid),
+        )
+        .select(['repost.uri', 'repost.cid', 'repost.indexed_at', 'repost.author_did', 'repost.post_uri'])
+        .execute()
 
   nonProductionLog(`Queried reposts at ${Math.round(performance.now() - t0)}`)
 
@@ -183,18 +190,18 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   let repostArray: FeedEntry[] = reposts.map((entry) => {
     // TODO: this could be more efficient, we just need the earliest repost, not a whole sort
     entry[1].sort((a, b) => {
-      let indexedAtDiff = new Date(b.indexed_at).getTime() - new Date(a.indexed_at).getTime()
+      let indexedAtDiff = new Date(a.indexed_at).getTime() - new Date(b.indexed_at).getTime()
       if (indexedAtDiff != 0) {
         return indexedAtDiff
       }
-      return b.cid.localeCompare(a.cid)
+      return a.cid.localeCompare(b.cid)
     })
     let repost = entry[1].at(0)!
     return {
-      // Custom feeds can't show a repost so this needs to be the reposted post itself...
       uri: repost.post_uri,
       cid: repost.cid,
       indexed_at: repost.indexed_at,
+      repost_uri: repost.uri
     }
   })
 
@@ -236,9 +243,21 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     cursor = new Date(last.indexed_at).getTime().toString(10) + ':' + last.cid
   }
 
-  const feed = posts.map((row) => ({
-    post: row.uri,
-  }))
+  const feed: AppBskyFeedDefs.SkeletonFeedPost[] = posts.map((row) => {
+    if (row.repost_uri) {
+      return {
+        post: row.uri,
+        reason: {
+          $type: 'app.bsky.feed.defs#skeletonReasonRepost',
+          repost: row.repost_uri
+        }
+      }
+    } else {
+      return {
+        post: row.uri,
+      }
+    }
+  })
 
   nonProductionLog(`Generated feed at ${Math.round(performance.now() - t0)}`)
 
