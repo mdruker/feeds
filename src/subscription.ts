@@ -245,13 +245,13 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     await this.db
       .deleteFrom('post')
       .where('indexed_at', '<', cutOffDate.toISOString())
-      .limit(10000)
+      .limit(1000)
       .execute()
 
     await this.db
       .deleteFrom('repost')
       .where('indexed_at', '<', cutOffDate.toISOString())
-      .limit(10000)
+      .limit(1000)
       .execute()
   }
 }

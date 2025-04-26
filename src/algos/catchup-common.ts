@@ -1,6 +1,6 @@
 import { AppContext } from '../config'
 import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
-import { nonProductionLog } from '../lib/env'
+import { debugLog } from '../lib/env'
 import { AtUri } from '@atproto/syntax'
 import * as AppBskyFeedDefs from '../lexicon/types/app/bsky/feed/defs'
 import { SkeletonReasonRepost } from '../lexicon/types/app/bsky/feed/defs'
@@ -61,7 +61,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   let t0 = performance.now()
 
   const settings = await getSettingsWithDefaults(ctx, requesterDid)
-  nonProductionLog(`Got settings at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Got settings at ${Math.round(performance.now() - t0)}`)
 
   // Fetch all of actor's follows from the db
   let follows = await ctx.db
@@ -69,7 +69,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     .selectAll()
     .where('source_did', '=', requesterDid)
     .execute()
-  nonProductionLog(`Got follows at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Got follows at ${Math.round(performance.now() - t0)}`)
 
   if (follows.length == 0) {
     return {
@@ -113,12 +113,12 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     res = res.filter((x) => !x.reply_parent_uri)
   }
 
-  nonProductionLog(`Got posts at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Got posts at ${Math.round(performance.now() - t0)}`)
 
   res = res.sort((a, b) =>
     b.num_likes + b.num_reposts + b.num_replies - a.num_likes - a.num_reposts - a.num_replies)
 
-  nonProductionLog(`Sorted all posts at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Sorted all posts at ${Math.round(performance.now() - t0)}`)
 
   let followsMap = new Map(follows.map((x) => [x.target_did, x]))
 
@@ -142,13 +142,13 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
       })
   }).toArray().flat()
 
-  nonProductionLog(`Filtered top posts at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Filtered top posts at ${Math.round(performance.now() - t0)}`)
 
   let postUris = new Set(posts.map((post) => post.uri))
 
   let repostPercent = settings.repost_percent || DEFAULT_REPOST_PERCENT
   let maxReposts = Math.round(posts.length * repostPercent / (100 - repostPercent))
-
+  
   // Reposts by people you follow
   let repostRes =
     maxReposts === 0
@@ -164,7 +164,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
         .select(['repost.uri', 'repost.cid', 'repost.indexed_at', 'repost.author_did', 'repost.post_uri'])
         .execute()
 
-  nonProductionLog(`Queried reposts at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Queried reposts at ${Math.round(performance.now() - t0)}`)
 
   repostRes = repostRes
     // It's apparently faster to do this filtering in the application layer.
@@ -186,9 +186,9 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     return b[0].localeCompare(a[0])
   })
 
-  nonProductionLog(`Sorted reposts at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Sorted reposts at ${Math.round(performance.now() - t0)}`)
 
-  nonProductionLog(`Filtering ${reposts.length} reposts with max ${maxReposts}`)
+  debugLog(`Filtering ${reposts.length} reposts with max ${maxReposts}`)
 
   reposts = reposts.slice(0, maxReposts)
 
@@ -210,7 +210,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     }
   })
 
-  nonProductionLog(`Processed reposts at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Processed reposts at ${Math.round(performance.now() - t0)}`)
 
   posts.push(...repostArray)
 
@@ -223,7 +223,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     return b.cid.localeCompare(a.cid)
   })
 
-  nonProductionLog(`Sorted posts at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Sorted posts at ${Math.round(performance.now() - t0)}`)
 
   // Apply the cursor only after so we're relatively consistently calculating the posts needed.
   if (params.cursor) {
@@ -238,7 +238,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     )
   }
 
-  nonProductionLog(`Filtered by cursor at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Filtered by cursor at ${Math.round(performance.now() - t0)}`)
 
   posts = posts.slice(0, params.limit)
 
@@ -264,7 +264,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     }
   })
 
-  nonProductionLog(`Generated feed at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Generated feed at ${Math.round(performance.now() - t0)}`)
 
   return {
     cursor,
