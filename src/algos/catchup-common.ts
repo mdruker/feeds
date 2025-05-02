@@ -147,8 +147,9 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   let postUris = new Set(posts.map((post) => post.uri))
 
   let repostPercent = settings.repost_percent || DEFAULT_REPOST_PERCENT
-  let maxReposts = Math.round(posts.length * repostPercent / (100 - repostPercent))
-  
+  //let maxReposts = Math.round(posts.length * repostPercent / (100 - repostPercent))
+  let maxReposts = 0
+
   // Reposts by people you follow
   let repostRes =
     maxReposts === 0
