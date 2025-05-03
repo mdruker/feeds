@@ -28,5 +28,5 @@ ENVIRONMENT = "production"
 
 [[vm]]
   memory = '2gb'
-  cpu_kind = 'shared'
-  cpus = 8
+  cpu_kind = 'performance'
+  cpus = 1
