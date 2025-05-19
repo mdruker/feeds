@@ -53,7 +53,9 @@ export async function updateSettings(ctx: AppContext, actorDid: string, settings
       settings: settingsJson,
       updated_at: new Date().toISOString(),
     })
-    .onConflict((oc) => oc.doUpdateSet({ settings: settingsJson, updated_at: new Date().toISOString() }))
+    .onConflict((oc) => oc
+      .constraint('feed_settings_pkey')
+      .doUpdateSet({ settings: settingsJson, updated_at: new Date().toISOString() }))
     .execute()
 }
 

@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for mdruker-feeds-staging on 2025-01-20T21:09:11-05:00
+# fly.toml app configuration file generated for mdruker-feeds-staging on 2025-05-17T12:43:07-04:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
@@ -16,7 +16,7 @@ ENVIRONMENT = "staging"
   destination = '/data'
   auto_extend_size_threshold = 80
   auto_extend_size_increment = '1GB'
-  auto_extend_size_limit = '80GB'
+  auto_extend_size_limit = '10GB'
 
 [http_service]
   internal_port = 3000

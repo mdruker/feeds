@@ -11,7 +11,6 @@ const run = async () => {
   const server = FeedGenerator.create({
     port: maybeInt(process.env.FEEDGEN_PORT)!!,
     listenhost: process.env.FEEDGEN_LISTENHOST as string,
-    sqliteLocation: process.env.FEEDGEN_SQLITE_LOCATION as string,
     publisherDid: process.env.FEEDGEN_PUBLISHER_DID as string,
     hostname: process.env.FEEDGEN_HOSTNAME as string,
     serviceDid: `did:web:${(process.env.FEEDGEN_HOSTNAME as string)}`,
@@ -20,7 +19,6 @@ const run = async () => {
     port: server.cfg.port,
     listenhost: server.cfg.listenhost,
     hostname: server.cfg.hostname,
-    sqliteLocation: server.cfg.sqliteLocation,
     serviceDid: server.cfg.serviceDid,
     publisherDid: server.cfg.publisherDid,
   })

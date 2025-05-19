@@ -34,7 +34,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           .insertInto('profile')
           .values(profileUpdates)
           .onConflict((oc) => oc
-            .column('did')
+            .constraint('profile_pkey')
             .doUpdateSet({
               handle: (eb) => eb.ref('excluded.handle'),
               updated_at: (eb) => eb.ref('excluded.updated_at')
@@ -96,8 +96,19 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     archivedPostCutoff.setHours(archivedPostCutoff.getHours() - 24*7)
 
     // This is where we'd filter by known follows, if we wanted to.
+
+    let createUris: Set<string> = new Set()
+
     let postsToUpdateOrCreate = ops.posts.creates
       .filter(create => new Date(create.record.createdAt) > archivedPostCutoff)
+      .filter(create => {
+        if (createUris.has(create.uri)) {
+          console.log('double create uri')
+          return false
+        } else {
+          return true
+        }
+      })
       .map((create) => {
         let createdAt = new Date(create.record.createdAt).toISOString()
         if (batchProcessDate < createdAt) {
@@ -127,6 +138,8 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           num_reposts: 0,
           properties: JSON.stringify(properties),
         }
+        createUris.add(create.uri)
+
         return newVar
       })
 
@@ -140,6 +153,9 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
 
     let postsToUpdateEngagement = postsToUpdateReplyCounts.concat(postsToLike).concat(postsToRepost)
 
+    let newPostUris = new Set(postsToUpdateOrCreate
+      .map((x) => x.uri))
+
     if (postsToUpdateEngagement.length > 0) {
       let posts = await this.db
         .selectFrom('post')
@@ -147,7 +163,8 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .where('uri', 'in', postsToUpdateEngagement)
         .execute()
 
-      postsToUpdateOrCreate = postsToUpdateOrCreate.concat(posts)
+      postsToUpdateOrCreate = postsToUpdateOrCreate.concat(
+        posts.filter((x) => !newPostUris.has(x.uri)))
     }
 
     for (let postUri of postsToLike) {
@@ -176,7 +193,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .insertInto('post')
         .values(postsToUpdateOrCreate)
         .onConflict((oc) => oc
-          .column('uri')
+          .constraint('post_pkey')
           .doUpdateSet((eb) => ({
             num_likes: eb.ref('excluded.num_likes'),
             num_reposts: eb.ref('excluded.num_reposts'),
@@ -244,14 +261,12 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
 
     await this.db
       .deleteFrom('post')
-      .where('indexed_at', '<', cutOffDate.toISOString())
-      .limit(5000)
+      .where('indexed_at', '<', cutOffDate.toUTCString())
       .execute()
 
     await this.db
       .deleteFrom('repost')
-      .where('indexed_at', '<', cutOffDate.toISOString())
-      .limit(5000)
+      .where('indexed_at', '<', cutOffDate.toUTCString())
       .execute()
   }
 }

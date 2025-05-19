@@ -147,7 +147,9 @@ export abstract class FirehoseSubscriptionBase {
     await this.db
       .insertInto('sub_state')
       .values({ service: JETSTREAM_ENDPOINT, cursor: cursor})
-      .onConflict((oc) => oc.doUpdateSet( {cursor}))
+      .onConflict((oc) => oc
+        .constraint('sub_state_pkey')
+        .doUpdateSet( {cursor}))
       .execute()
   }
 

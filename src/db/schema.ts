@@ -30,7 +30,6 @@ export type Follow = {
   source_did: string
   target_did: string
   created_at: string
-  is_mutual: number // No longer updated
   actor_score: number
 }
 

@@ -112,7 +112,7 @@ jobHandlers.register({
         .insertInto('profile')
         .values(profiles)
         .onConflict((oc) => oc
-          .column('did')
+          .constraint('profile_pkey')
           .doUpdateSet({
             handle: (eb) => eb.ref('excluded.handle'),
             updated_at: (eb) => eb.ref('excluded.updated_at'),
