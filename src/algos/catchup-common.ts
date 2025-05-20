@@ -71,13 +71,20 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     .selectAll()
     .where('source_did', '=', requesterDid)
     .execute()
-  debugLog(`Got follows at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Got ${follows.length} follows at ${Math.round(performance.now() - t0)}`)
 
   if (follows.length == 0) {
     return {
       feed: [],
     }
   }
+
+  let cutOffDate = new Date()
+  cutOffDate.setHours(cutOffDate.getHours() - 24)
+
+  // We need some time to pass before the engagement counts cure up
+  let oldEnoughDate = new Date()
+  oldEnoughDate.setMinutes(oldEnoughDate.getMinutes() - 15)
 
   // Posts and replies to people you follow, all the way to the cut-off so we're calculating
   // what needs to be seen more-or-less consistently.
@@ -89,20 +96,11 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
         .onRef('follow.target_did', '=', 'post.author_did')
         .on('follow.source_did', '=', requesterDid),
     )
+    .where('post.indexed_at', '>', cutOffDate.toISOString())
+    .where('post.indexed_at', '<', oldEnoughDate.toISOString())
     .select(['post.uri', 'post.cid', 'post.indexed_at', 'post.author_did', 'post.num_likes', 'post.num_reposts', 'post.num_replies', 'post.reply_parent_uri', 'post.reply_root_uri'])
     .execute()
-
-  let cutOffDate = new Date()
-  cutOffDate.setHours(cutOffDate.getHours() - 24)
-
-  // We need some time to pass before the engagement counts cure up
-  let oldEnoughDate = new Date()
-  oldEnoughDate.setMinutes(oldEnoughDate.getMinutes() - 15)
-
-  // It's apparently faster to do this filtering in the application layer.
-  res = res.filter((x) => {
-    return x.indexed_at > cutOffDate.toISOString() && x.indexed_at < oldEnoughDate.toISOString()
-  })
+  debugLog(`Got ${res.length} results before filtering posts`)
 
   if (settings.include_replies) {
     let followedDids = follows.map(follow => follow.target_did)
@@ -115,7 +113,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     res = res.filter((x) => !x.reply_parent_uri)
   }
 
-  debugLog(`Got posts at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Got ${res.length} posts at ${Math.round(performance.now() - t0)}`)
 
   res = res.sort((a, b) =>
     b.num_likes + b.num_reposts + b.num_replies - a.num_likes - a.num_reposts - a.num_replies)
@@ -144,7 +142,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
       })
   }).toArray().flat()
 
-  debugLog(`Filtered top posts at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Filtered ${posts.length} top posts at ${Math.round(performance.now() - t0)}`)
 
   let postUris = new Set(posts.map((post) => post.uri))
 
@@ -163,16 +161,14 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
             .onRef('follow.target_did', '=', 'repost.author_did')
             .on('follow.source_did', '=', requesterDid),
         )
+        .where('repost.indexed_at', '>', cutOffDate.toISOString())
+        .where('repost.indexed_at', '<', oldEnoughDate.toISOString())
         .select(['repost.uri', 'repost.cid', 'repost.indexed_at', 'repost.author_did', 'repost.post_uri'])
         .execute()
 
   debugLog(`Queried reposts at ${Math.round(performance.now() - t0)}`)
 
   repostRes = repostRes
-    // It's apparently faster to do this filtering in the application layer.
-    .filter((x) => {
-      return x.indexed_at > cutOffDate.toISOString() && x.indexed_at < oldEnoughDate.toISOString()
-    })
     // Don't show reposts of posts we'd already show
     .filter((x) => !postUris.has(x.post_uri))
 
@@ -225,7 +221,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     return b.cid.localeCompare(a.cid)
   })
 
-  debugLog(`Sorted posts at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Sorted ${posts.length} posts at ${Math.round(performance.now() - t0)}`)
 
   // Apply the cursor only after so we're relatively consistently calculating the posts needed.
   if (params.cursor) {
@@ -266,7 +262,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     }
   })
 
-  debugLog(`Generated feed at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Generated feed with ${feed.length} entries at ${Math.round(performance.now() - t0)}`)
 
   return {
     cursor,
