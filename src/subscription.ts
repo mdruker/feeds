@@ -96,12 +96,12 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
 
     // This is where we'd filter by known follows, if we wanted to.
 
-    let createUris: Set<string> = new Set()
+    let postUrisToCreateOrUpdate: Set<string> = new Set()
 
     let postsToUpdateOrCreate = ops.posts.creates
       .filter(create => new Date(create.record.createdAt) > archivedPostCutoff)
       .filter(create => {
-        if (createUris.has(create.uri)) {
+        if (postUrisToCreateOrUpdate.has(create.uri)) {
           console.log('double create uri')
           return false
         } else {
@@ -137,7 +137,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           num_reposts: 0,
           properties: JSON.stringify(properties),
         }
-        createUris.add(create.uri)
+        postUrisToCreateOrUpdate.add(create.uri)
 
         return newVar
       })
@@ -150,10 +150,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     let postsToRepost = ops.reposts.creates
       .map((x) => x.record.subject.uri)
 
-    let postsToUpdateEngagement = postsToUpdateReplyCounts.concat(postsToLike).concat(postsToRepost)
-
-    let newPostUris = new Set(postsToUpdateOrCreate
-      .map((x) => x.uri))
+    let postsToUpdateEngagement = [...new Set(postsToUpdateReplyCounts.concat(postsToLike).concat(postsToRepost))]
 
     if (postsToUpdateEngagement.length > 0) {
       let posts = await this.db
@@ -162,8 +159,12 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .where('uri', 'in', postsToUpdateEngagement)
         .execute()
 
-      postsToUpdateOrCreate = postsToUpdateOrCreate.concat(
-        posts.filter((x) => !newPostUris.has(x.uri)))
+      for (let post of posts) {
+        if (!postUrisToCreateOrUpdate.has(post.uri)) {
+          postsToUpdateOrCreate.push(post)
+          postUrisToCreateOrUpdate.add(post.uri)
+        }
+      }
     }
 
     for (let postUri of postsToLike) {

@@ -53,6 +53,7 @@ jobHandlers.register({
     const follows = await ctx.db
       .selectFrom('follow')
       .select('target_did')
+      .distinct()
       .leftJoin('profile', 'profile.did', 'follow.target_did')
       .where('source_did', '=', payload.did)
       .where('profile.handle', 'is', null)
@@ -60,7 +61,9 @@ jobHandlers.register({
 
     let dids = follows.map(follow => follow.target_did)
     // Look up the acting account too
-    dids.push(payload.did)
+    if (!dids.includes(payload.did)) {
+      dids.push(payload.did)
+    }
 
     const atPrefix = 'at://'
     const didWebPrefix = 'did:web:'
