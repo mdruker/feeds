@@ -189,9 +189,15 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     }
 
     if (postsToUpdateOrCreate.length > 0) {
+      // Final deduplication to ensure no duplicate URIs
+      const uniquePosts = postsToUpdateOrCreate.reduce((acc, post) => {
+        acc.set(post.uri, post)
+        return acc
+      }, new Map<string, typeof postsToUpdateOrCreate[0]>())
+      
       await this.db
         .insertInto('post')
-        .values(postsToUpdateOrCreate)
+        .values(Array.from(uniquePosts.values()))
         .onConflict((oc) => oc
           .constraint('post_pkey')
           .doUpdateSet((eb) => ({
