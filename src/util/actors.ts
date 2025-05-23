@@ -1,15 +1,36 @@
-import { AppContext } from '../config'
 import { AtpAgent } from '@atproto/api'
+import { Database } from '../db/database'
+import { DidResolver } from '@atproto/identity'
+import { JobManager } from '../jobs/manager'
 
 const MAX_FOLLOWS_TO_INDEX = 30000
 
-export async function populateActor(ctx: AppContext, requesterDid: string) {
+export async function populateActor(
+  db: Database, 
+  didResolver: DidResolver, 
+  jobManager: JobManager, 
+  requesterDid: string, 
+  async: boolean = false
+) {
+  let actor = await db
+    .selectFrom('actor')
+    .selectAll()
+    .where('did', '=', requesterDid)
+    .executeTakeFirst()
+  if (actor !== undefined) {
+    return
+  }
+
+  if (async) {
+    await jobManager.createJob('populate-actor', { did: requesterDid })
+    return
+  }
   // Using unauthenticated read-only API
   const agent = new AtpAgent({
     service: 'https://public.api.bsky.app/',
   })
 
-  let resolvedDid = await ctx.didResolver.resolve(requesterDid)
+  let resolvedDid = await didResolver.resolve(requesterDid)
 
   let serviceEndpoint = resolvedDid?.service?.at(0)?.serviceEndpoint
   if (!serviceEndpoint) {
@@ -52,16 +73,16 @@ export async function populateActor(ctx: AppContext, requesterDid: string) {
 
   const maxRowsToInsert = 5000
   for (let i = 0; i < followsCreate.length; i = i + maxRowsToInsert) {
-    await ctx.db
+    await db
       .insertInto('follow')
       .values(followsCreate.slice(i, i + maxRowsToInsert))
       .onConflict((oc) => oc.doNothing())
       .execute()
   }
 
-  await ctx.jobManager.createJob('fetch-follow-profiles', { 'did': requesterDid })
+  await jobManager.createJob('fetch-follow-profiles', { 'did': requesterDid })
 
-  await ctx.db
+  await db
     .insertInto('actor')
     .values({
       did: requesterDid,

@@ -7,7 +7,7 @@ import { populateActor } from '../util/actors'
 export const shortname = 'catchup'
 
 const NEW_ACTOR_PLACEHOLDER_FEED: { post: any }[] = [{
-  post: 'at://did:plc:prng5tkqrb4b7f5xoishgpjl/app.bsky.feed.post/3lfzsvc6vkc2c',
+  post: 'at://did:plc:spjnerrczdlc4mt3zf3pnjg2/app.bsky.feed.post/3lpudze4prs2w',
 }]
 
 export const handler = async (ctx: AppContext, params: QueryParams, requesterDid: string) => {
@@ -20,8 +20,21 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
   if (actor === undefined) {
     console.log(`Did not find ${requesterDid} in the db, starting to populate`)
 
-    // This might take a while, but usually seems OK to wait for it to finish.
-    await populateActor(ctx, requesterDid)
+    // Enqueue the job to populate the actor
+    await populateActor(ctx.db, ctx.didResolver, ctx.jobManager, requesterDid, true)
+    
+    // If the job finishes quickly, we can return the feed immediately.
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    actor = await ctx.db
+      .selectFrom('actor')
+      .selectAll()
+      .where('did', '=', requesterDid)
+      .executeTakeFirst()
+    
+    if (actor === undefined) {
+      console.log(`Actor ${requesterDid} still not found after waiting, returning placeholder`)
+      return { feed: NEW_ACTOR_PLACEHOLDER_FEED }
+    }
   }
 
   return await generateCatchupFeed(ctx, requesterDid, params)

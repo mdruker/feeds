@@ -1,9 +1,14 @@
 import { Database } from '../db/database'
 import { DidResolver } from '@atproto/identity'
 import { Profile } from '../db/schema'
+import { populateActor } from '../util/actors'
+import { JobManager } from './manager'
 
 export interface JobTypes {
   'fetch-follow-profiles': {
+    did: string
+  }
+  'populate-actor': {
     did: string
   }
 }
@@ -11,6 +16,7 @@ export interface JobTypes {
 export interface JobContext {
   db: Database
   didResolver: DidResolver
+  jobManager: JobManager
 }
 
 // Type helper for job handlers with context
@@ -122,5 +128,12 @@ jobHandlers.register({
           }))
         .execute()
     }
+  }
+})
+
+jobHandlers.register({
+  type: 'populate-actor',
+  handler: async (payload, ctx) => {
+    await populateActor(ctx.db, ctx.didResolver, ctx.jobManager, payload.did)
   }
 })

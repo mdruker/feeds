@@ -18,7 +18,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
     console.log(`Did not find ${requesterDid} in the db, starting to populate`)
 
     // This might take a while, but usually seems OK to wait for it to finish.
-    await populateActor(ctx, requesterDid)
+    await populateActor(ctx.db, ctx.didResolver, ctx.jobManager, requesterDid)
   }
 
   // Fetch all of actor's follows from the db

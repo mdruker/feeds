@@ -15,7 +15,8 @@ export class JobWorker {
   private getContext(): JobContext {
     return {
       db: this.db,
-      didResolver: this.didResolver
+      didResolver: this.didResolver,
+      jobManager: this.jobManager
     }
   }
 

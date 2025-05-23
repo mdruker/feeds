@@ -168,10 +168,10 @@ const makeRouter = (ctx: AppContext) => {
         .map(x => x.uri)
     }
 
-    let followsResponse = await agent.getPosts(params)
+    let followsResponse = posts.length > 0 ? (await agent.getPosts(params)).data.posts : []
 
     // Transform the posts into a readable format
-    const renderedPosts = followsResponse.data.posts.map(x => {
+    const renderedPosts = followsResponse.map(x => {
       let storedPost = posts.find((y) => y.uri === x.uri)!!
 
       return {
