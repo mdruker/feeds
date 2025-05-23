@@ -58,7 +58,6 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           source_did: followCreate.author,
           target_did: followCreate.record.subject,
           created_at: batchProcessDate,
-          is_mutual: 0,
           actor_score: 0
         }
       })

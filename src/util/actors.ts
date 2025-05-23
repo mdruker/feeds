@@ -47,7 +47,6 @@ export async function populateActor(ctx: AppContext, requesterDid: string) {
     source_did: follow.uri.split('/')[2],
     target_did: follow.value.subject,
     created_at: new Date(follow.value.createdAt).toISOString(),
-    is_mutual: 0,
     actor_score: 0,
   }))
 
