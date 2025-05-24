@@ -3,7 +3,6 @@ import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { debugLog } from '../lib/env'
 import { AtUri } from '@atproto/syntax'
 import * as AppBskyFeedDefs from '../lexicon/types/app/bsky/feed/defs'
-import { SkeletonReasonRepost } from '../lexicon/types/app/bsky/feed/defs'
 
 export type CatchupSettings = {
   include_replies: boolean | undefined
@@ -82,10 +81,6 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   let cutOffDate = new Date()
   cutOffDate.setHours(cutOffDate.getHours() - 24)
 
-  // We need some time to pass before the engagement counts cure up
-  let oldEnoughDate = new Date()
-  oldEnoughDate.setMinutes(oldEnoughDate.getMinutes() - 15)
-
   // Posts and replies to people you follow, all the way to the cut-off so we're calculating
   // what needs to be seen more-or-less consistently.
   let res = await ctx.db
@@ -97,7 +92,6 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
         .on('follow.source_did', '=', requesterDid),
     )
     .where('post.indexed_at', '>', cutOffDate.toISOString())
-    .where('post.indexed_at', '<', oldEnoughDate.toISOString())
     .select(['post.uri', 'post.cid', 'post.indexed_at', 'post.author_did', 'post.num_likes', 'post.num_reposts', 'post.num_replies', 'post.reply_parent_uri', 'post.reply_root_uri'])
     .execute()
   debugLog(`Got ${res.length} results before filtering posts`)
@@ -162,7 +156,6 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
             .on('follow.source_did', '=', requesterDid),
         )
         .where('repost.indexed_at', '>', cutOffDate.toISOString())
-        .where('repost.indexed_at', '<', oldEnoughDate.toISOString())
         .select(['repost.uri', 'repost.cid', 'repost.indexed_at', 'repost.author_did', 'repost.post_uri'])
         .execute()
 
@@ -231,8 +224,8 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     let cursorCid: string = strings.length == 2 ? strings[1] : ''
 
     posts = posts.filter((x) =>
-      x.indexed_at < timeStr ||
-      x.indexed_at === timeStr && x.cid < cursorCid,
+      new Date(x.indexed_at).toISOString() < timeStr ||
+      new Date(x.indexed_at).toISOString() === timeStr && x.cid < cursorCid,
     )
   }
 

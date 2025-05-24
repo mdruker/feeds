@@ -81,8 +81,8 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
     let cursorCid: string = strings.length == 2 ? strings[1] : ""
 
     posts = posts.filter((x) =>
-      x.indexed_at < timeStr ||
-      x.indexed_at === timeStr && x.cid < cursorCid
+      new Date(x.indexed_at).toISOString() < timeStr ||
+      new Date(x.indexed_at).toISOString() === timeStr && x.cid < cursorCid
     )
   }
 
