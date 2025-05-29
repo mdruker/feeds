@@ -4,3 +4,4 @@
 Dockerfile
 fly.*.toml
 *.sqlite
+.DS_Store

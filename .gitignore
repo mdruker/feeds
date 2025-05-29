@@ -133,3 +133,6 @@ dist
 # sqlite
 *.sqlite
 /db.sqlite-journal
+
+# Mac
+.DS_Store
