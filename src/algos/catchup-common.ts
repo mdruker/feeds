@@ -46,7 +46,7 @@ export async function updateSettings(ctx: AppContext, actorDid: string, settings
       updated_at: new Date().toISOString(),
     })
     .onConflict((oc) => oc
-      .constraint('feed_settings_pkey')
+      .columns(['actor_did', 'shortname'])
       .doUpdateSet({ settings: settingsJson, updated_at: new Date().toISOString() }))
     .execute()
 }
@@ -56,20 +56,6 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
 
   const settings = await getSettingsWithDefaults(ctx, requesterDid)
   debugLog(`Got settings at ${Math.round(performance.now() - t0)}`)
-
-  // Fetch all of actor's follows from the db
-  let follows = await ctx.db
-    .selectFrom('follow')
-    .selectAll()
-    .where('source_did', '=', requesterDid)
-    .execute()
-  debugLog(`Got ${follows.length} follows at ${Math.round(performance.now() - t0)}`)
-
-  if (follows.length == 0) {
-    return {
-      feed: [],
-    }
-  }
 
   let cutOffDate = new Date()
   cutOffDate.setHours(cutOffDate.getHours() - 24)
@@ -107,7 +93,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
               (join) => join
                 .onRef('root_follow.target_did', '=', sql`split_part
                 (replace(post.reply_root_uri, 'at://', ''), '/', 1)`)
-                .on('root_follow.source_did', '=', 'post.author_did'),
+                .on('root_follow.source_did', '=', requesterDid),
             )
             .where((eb) =>
               eb('reply_parent_uri', 'is', null).or('root_follow.target_did', 'is not', null)
