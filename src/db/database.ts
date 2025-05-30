@@ -2,6 +2,7 @@ import { Kysely, Migrator, PostgresDialect, SqliteDialect } from 'kysely'
 import { Pool } from 'pg'
 import { DatabaseSchema } from './schema'
 import { migrationProvider } from './migrations'
+import { isDevelopment } from '../lib/env'
 
 export const createDb = (): Database => {
   return new Kysely<DatabaseSchema>({
@@ -17,7 +18,13 @@ export const createDb = (): Database => {
           cert: process.env.DATABASE_SSL_CERT,
         } : null,
       })
-    })
+    }),
+    log: (event) => {
+      if (isDevelopment() && event.level === 'error') {
+        console.log('Query:', event.query.sql)
+        console.log('Parameters:', event.query.parameters)
+      }
+    }
   })
 }
 
