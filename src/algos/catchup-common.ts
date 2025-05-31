@@ -104,10 +104,10 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
 
         return query
           .where('post.indexed_at', '>', cutOffDate.toISOString())
-          .select(['post.uri', 'post.cid', 'post.indexed_at', 'post.author_did', 'post.num_likes', 'post.num_reposts', 'post.num_replies']) //, 'author_follow.actor_score'])
+          .select(['post.uri', 'post.cid', 'post.indexed_at', 'post.author_did', 'post.engagement_count']) //, 'author_follow.actor_score'])
           .select(
             sql<number>`row_number
-            () over (partition by post.author_did order by post.num_likes + post.num_reposts + post.num_replies desc)`
+            () over (partition by post.author_did order by post.engagement_count desc)`
               .as('rn'))
       },
     )

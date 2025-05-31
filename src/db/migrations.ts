@@ -1,4 +1,4 @@
-import { Kysely, Migration, MigrationProvider } from 'kysely'
+import { Kysely, Migration, MigrationProvider, sql } from 'kysely'
 
 const migrations: Record<string, Migration> = {}
 
@@ -197,6 +197,47 @@ migrations['002'] = {
       .alterTable('post')
       .dropColumn('reply_parent_did')
       .dropColumn('reply_root_did')
+      .execute()
+  },
+}
+
+
+migrations['003'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('post')
+      .alterColumn('num_likes', ac => ac.dropNotNull())
+      .execute()
+    await db.schema
+      .alterTable('post')
+      .alterColumn('num_replies', ac => ac.dropNotNull())
+      .execute()
+    await db.schema
+      .alterTable('post')
+      .alterColumn('num_reposts', ac => ac.dropNotNull())
+      .execute()
+
+    await db.schema
+      .alterTable('post')
+      .addColumn('engagement_count', 'integer')
+      .execute()
+
+    await db.schema
+      .createIndex('idx_post_author_engagement')
+      .on('post')
+      .columns(['author_did', 'engagement_count desc'])
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('post')
+      .dropColumn('engagement_count')
+      .execute()
+
+    await db.schema
+      .alterTable('post')
+      .dropIndex('idx_post_author_engagement')
       .execute()
   },
 }

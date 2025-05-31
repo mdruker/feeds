@@ -181,9 +181,7 @@ const makeRouter = (ctx: AppContext) => {
         likeCount: x.likeCount,
         replyCount: x.replyCount,
         repostCount: x.repostCount,
-        storedLikeCount: storedPost?.num_likes,
-        storedReplyCount: storedPost?.num_replies,
-        storedRepostCount: storedPost?.num_reposts
+        engagement_count: storedPost?.engagement_count,
       }
     })
 
@@ -246,9 +244,7 @@ const makeRouter = (ctx: AppContext) => {
                   💬 ${post.replyCount || 0} &nbsp;
                   (Bluesky)
                 </div class="post-stats">
-                  ❤️ ${post.storedLikeCount || 0} &nbsp;
-                  🔄 ${post.storedRepostCount || 0} &nbsp;
-                  💬 ${post.storedReplyCount || 0} &nbsp;
+                  ✨ ${post.engagement_count || 0} &nbsp;
                   (Feed storage)
                 </div>
               </div>

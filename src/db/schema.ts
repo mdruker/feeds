@@ -42,9 +42,7 @@ export type Post = {
   reply_root_uri: string | undefined
   reply_root_did: string | undefined
   indexed_at: string
-  num_likes: number
-  num_replies: number
-  num_reposts: number
+  engagement_count: number
   properties: string | undefined
 }
 

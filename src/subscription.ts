@@ -139,9 +139,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
             ? new AtUri(create.record.reply.root.uri).host
             : undefined,
           indexed_at: createdAt,
-          num_likes: 0,
-          num_replies: 0,
-          num_reposts: 0,
+          engagement_count: 0,
           properties: JSON.stringify(properties),
         }
         postUrisToCreateOrUpdate.add(create.uri)
@@ -174,24 +172,10 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       }
     }
 
-    for (let postUri of postsToLike) {
+    for (let postUri of postsToLike.concat(postsToUpdateEngagement).concat(postsToRepost)) {
       let i = postsToUpdateOrCreate.findIndex(x => x.uri === postUri)
       if (i >= 0) {
-        postsToUpdateOrCreate[i].num_likes = postsToUpdateOrCreate[i].num_likes + 1
-      }
-    }
-
-    for (let postUri of postsToUpdateReplyCounts) {
-      let i = postsToUpdateOrCreate.findIndex(x => x.uri === postUri)
-      if (i >= 0) {
-        postsToUpdateOrCreate[i].num_replies = postsToUpdateOrCreate[i].num_replies + 1
-      }
-    }
-
-    for (let postUri of postsToRepost) {
-      let i = postsToUpdateOrCreate.findIndex(x => x.uri === postUri)
-      if (i >= 0) {
-        postsToUpdateOrCreate[i].num_reposts = postsToUpdateOrCreate[i].num_reposts + 1
+        postsToUpdateOrCreate[i].engagement_count = postsToUpdateOrCreate[i].engagement_count + 1
       }
     }
 
@@ -208,9 +192,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .onConflict((oc) => oc
           .constraint('post_pkey')
           .doUpdateSet((eb) => ({
-            num_likes: eb.ref('excluded.num_likes'),
-            num_reposts: eb.ref('excluded.num_reposts'),
-            num_replies: eb.ref('excluded.num_replies'),
+            engagement_count: eb.ref('excluded.engagement_count'),
           })))
         .execute()
     }
