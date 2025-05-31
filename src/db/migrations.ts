@@ -182,3 +182,21 @@ migrations['001'] = {
     await db.schema.dropTable('repost').execute()
   },
 }
+
+migrations['002'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('post')
+      .addColumn('reply_parent_did', 'varchar')
+      .addColumn('reply_root_did', 'varchar')
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('post')
+      .dropColumn('reply_parent_did')
+      .dropColumn('reply_root_did')
+      .execute()
+  },
+}

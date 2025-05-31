@@ -38,7 +38,9 @@ export type Post = {
   cid: string
   author_did: string
   reply_parent_uri: string | undefined
+  reply_parent_did: string | undefined
   reply_root_uri: string | undefined
+  reply_root_did: string | undefined
   indexed_at: string
   num_likes: number
   num_replies: number

@@ -3,6 +3,7 @@ import { isLink } from './lexicon/types/app/bsky/richtext/facet'
 import { isMain as isExternalEmbed } from './lexicon/types/app/bsky/embed/external'
 import { Post, Repost } from './db/schema'
 import { PostProperties } from './util/properties'
+import { AtUri } from '@atproto/syntax'
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleOps(ops: OperationsByType) {
@@ -130,7 +131,13 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           cid: create.cid,
           author_did: create.author,
           reply_parent_uri: create.record.reply?.parent.uri,
+          reply_parent_did: create.record.reply
+            ? new AtUri(create.record.reply.parent.uri).host
+            : undefined,
           reply_root_uri: create.record.reply?.root.uri,
+          reply_root_did: create.record.reply
+            ? new AtUri(create.record.reply.root.uri).host
+            : undefined,
           indexed_at: createdAt,
           num_likes: 0,
           num_replies: 0,
