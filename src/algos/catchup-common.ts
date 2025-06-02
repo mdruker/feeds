@@ -104,7 +104,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
 
         return query
           .where('post.indexed_at', '>', cutOffDate.toISOString())
-          .select(['post.uri', 'post.cid', 'post.indexed_at', 'post.author_did', 'post.engagement_count']) //, 'author_follow.actor_score'])
+          .select(['post.uri', 'post.cid', 'post.indexed_at', 'post.author_did', 'post.engagement_count', 'author_follow.actor_score'])
           .select(
             sql<number>`row_number
             () over (partition by post.author_did order by post.engagement_count desc)`
@@ -115,66 +115,66 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
       return db
         .selectFrom('rankedPosts')
         .select(['uri', 'cid', 'indexed_at', sql<string>`null`.as('post_uri')])
-        .where('rn', '<=', sql<number>`${postsPerAccount}`)  // + actor_score`)
+        .where('rn', '<=', sql<number>`${postsPerAccount} + actor_score`)
     }))
-    // .with('repostDetails', (db) => {
-    //   return db
-    //     .selectFrom('repost')
-    //     .innerJoin(
-    //       'follow',
-    //       (join) => join
-    //         .onRef('follow.target_did', '=', 'repost.author_did')
-    //         .on('follow.source_did', '=', requesterDid),
-    //     )
-    //     .select([
-    //       'repost.uri as repost_uri',
-    //       'repost.cid',
-    //       'repost.post_uri',
-    //       'repost.indexed_at',
-    //       sql<number>`count(*) over (partition by post_uri)`.as('repost_count'),
-    //       sql<number>`row_number() over (partition by post_uri order by repost.indexed_at asc)`.as('repost_rn')
-    //     ])
-    //     .where('repost.indexed_at', '>', cutOffDate.toISOString())
-    // })
-    // .with('postCount', (db => {
-    //   return db
-    //     .selectFrom('filteredPosts')
-    //     .select(sql<number>`count(*)`.as('total_posts'))
-    // }))
-    // .with('rankedReposts', (db => {
-    //   return db
-    //     .selectFrom('repostDetails')
-    //     .innerJoin('postCount', (join) => join.on(sql`1`, '=', sql`1`))
-    //     .select([
-    //       'repost_uri as uri',
-    //       'cid',
-    //       'indexed_at',
-    //       'post_uri',
-    //       sql<number>`row_number() over (order by repost_count desc)`.as('repost_rank'),
-    //       'total_posts'
-    //     ])
-    //     .where('repost_rn', '=', 1)
-    //     .where((eb) => eb.not(eb.exists(
-    //       eb.selectFrom('rankedPosts')
-    //         .select('uri')
-    //         .whereRef('rankedPosts.uri', '=', 'repostDetails.post_uri')
-    //     )))
-    // }))
-    // .with('limitedReposts', (db => {
-    //   return db
-    //     .selectFrom('rankedReposts')
-    //     .select(['uri', 'cid', 'indexed_at', 'post_uri'])
-    //     .where((eb) => eb('repost_rank', '<=',
-    //       sql<number>`round(total_posts * ${repostPercent} / (100 - ${repostPercent}))`
-    //     ))
-    // }))
+    .with('repostDetails', (db) => {
+      return db
+        .selectFrom('repost')
+        .innerJoin(
+          'follow',
+          (join) => join
+            .onRef('follow.target_did', '=', 'repost.author_did')
+            .on('follow.source_did', '=', requesterDid),
+        )
+        .select([
+          'repost.uri as repost_uri',
+          'repost.cid',
+          'repost.post_uri',
+          'repost.indexed_at',
+          sql<number>`count(*) over (partition by post_uri)`.as('repost_count'),
+          sql<number>`row_number() over (partition by post_uri order by repost.indexed_at asc)`.as('repost_rn')
+        ])
+        .where('repost.indexed_at', '>', cutOffDate.toISOString())
+    })
+    .with('postCount', (db => {
+      return db
+        .selectFrom('filteredPosts')
+        .select(sql<number>`count(*)`.as('total_posts'))
+    }))
+    .with('rankedReposts', (db => {
+      return db
+        .selectFrom('repostDetails')
+        .innerJoin('postCount', (join) => join.on(sql`1`, '=', sql`1`))
+        .select([
+          'repost_uri as uri',
+          'cid',
+          'indexed_at',
+          'post_uri',
+          sql<number>`row_number() over (order by repost_count desc)`.as('repost_rank'),
+          'total_posts'
+        ])
+        .where('repost_rn', '=', 1)
+        .where((eb) => eb.not(eb.exists(
+          eb.selectFrom('rankedPosts')
+            .select('uri')
+            .whereRef('rankedPosts.uri', '=', 'repostDetails.post_uri')
+        )))
+    }))
+    .with('limitedReposts', (db => {
+      return db
+        .selectFrom('rankedReposts')
+        .select(['uri', 'cid', 'indexed_at', 'post_uri'])
+        .where((eb) => eb('repost_rank', '<=',
+          sql<number>`round(total_posts * ${repostPercent} / (100 - ${repostPercent}))`
+        ))
+    }))
     .with('combined', (db => {
       return db.selectFrom('filteredPosts')
         .select(['uri', 'cid', 'indexed_at', sql<string>`null`.as('post_uri')])
-        // .unionAll(
-        //   db.selectFrom('limitedReposts')
-        //     .select(['uri', 'cid', 'indexed_at', 'post_uri'])
-        // )
+        .unionAll(
+          db.selectFrom('limitedReposts')
+            .select(['uri', 'cid', 'indexed_at', 'post_uri'])
+        )
     }))
     .selectFrom('combined')
     .selectAll()
