@@ -172,7 +172,8 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       }
     }
 
-    for (let postUri of postsToLike.concat(postsToUpdateEngagement).concat(postsToRepost)) {
+    let postsToUpdateList = postsToLike.concat(postsToUpdateEngagement).concat(postsToRepost)
+    for (let postUri of postsToUpdateList) {
       let i = postsToUpdateOrCreate.findIndex(x => x.uri === postUri)
       if (i >= 0) {
         postsToUpdateOrCreate[i].engagement_count = postsToUpdateOrCreate[i].engagement_count + 1
@@ -185,7 +186,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         acc.set(post.uri, post)
         return acc
       }, new Map<string, typeof postsToUpdateOrCreate[0]>())
-      
+
       await this.db
         .insertInto('post')
         .values(Array.from(uniquePosts.values()))
@@ -205,13 +206,6 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .where('uri', 'in', postsToDelete)
         .execute()
     }
-
-    ops.reposts.creates
-      .map((x) => {
-        if (ops.reposts.creates.length % 500 === 0) {
-          console.log('here')
-        }
-      })
 
     let repostsToCreate = ops.reposts.creates
       .filter(create => new Date(create.record.createdAt) > archivedPostCutoff)

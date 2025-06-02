@@ -101,6 +101,11 @@ export class FeedGenerator {
       console.log(`App listening on port ${this.cfg.port}`)
     })
     await events.once(this.server, 'listening')
+
+    setInterval(() => {
+      const used = process.memoryUsage()
+      console.log(`Memory usage: rss: ${Math.round(used.rss / 1024 / 1024)} MB, heapTotal: ${Math.round(used.heapTotal / 1024 / 1024)} MB`)
+    }, 60000)
     return this.server
   }
 }

@@ -201,7 +201,6 @@ migrations['002'] = {
   },
 }
 
-
 migrations['003'] = {
   async up(db: Kysely<unknown>) {
     await db.schema
@@ -238,6 +237,23 @@ migrations['003'] = {
     await db.schema
       .alterTable('post')
       .dropIndex('idx_post_author_engagement')
+      .execute()
+  },
+}
+
+migrations['004'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createIndex('idx_post_indexed_at_desc')
+      .on('post')
+      .column('indexed_at desc')
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('post')
+      .dropIndex('idx_post_indexed_at_desc')
       .execute()
   },
 }
