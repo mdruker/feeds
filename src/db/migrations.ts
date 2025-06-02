@@ -257,3 +257,20 @@ migrations['004'] = {
       .execute()
   },
 }
+
+migrations['005'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createIndex('idx_repost_indexed_at_desc')
+      .on('repost')
+      .column('indexed_at desc')
+      .execute()
+  },
+
+  async down(db: Kysely<unknown>) {
+    await db.schema
+      .alterTable('repost')
+      .dropIndex('idx_repost_indexed_at_desc')
+      .execute()
+  },
+}
