@@ -47,7 +47,7 @@ export abstract class FirehoseSubscriptionBase {
         commitEvent: event
       })
 
-      if (eventQueue.size > BATCH_SIZE * 10 && this.jetstream.ws?.readyState == OPEN) {
+      if (eventQueue.size > BATCH_SIZE * 3 && this.jetstream.ws?.readyState == OPEN) {
         console.log('Too many events in queue, closing jetstream')
         this.jetstream.close()
       }
@@ -60,7 +60,7 @@ export abstract class FirehoseSubscriptionBase {
         commitEvent: undefined
       })
 
-      if (eventQueue.size > BATCH_SIZE * 10 && this.jetstream.ws?.readyState == OPEN) {
+      if (eventQueue.size > BATCH_SIZE * 3 && this.jetstream.ws?.readyState == OPEN) {
         console.log('Too many events in queue, closing jetstream')
         this.jetstream.close()
       }
@@ -116,7 +116,7 @@ export abstract class FirehoseSubscriptionBase {
             await this.updateDbCursorAndCheckForRestart(lastSuccessfulCursor!!)
             console.log(`Processed batch in ${Math.round(t1 - t0)} ms (fetching) and ${Math.round(t2 - t1)} ms (handling), updated cursor to ${lastSuccessfulCursor}`)
 
-            if (this.jetstream.ws?.readyState === CLOSED && eventQueue.size < BATCH_SIZE * 5) {
+            if (this.jetstream.ws?.readyState === CLOSED && eventQueue.size < BATCH_SIZE) {
               this.jetstream.start()
             }
           } else {

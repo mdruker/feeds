@@ -131,13 +131,9 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           cid: create.cid,
           author_did: create.author,
           reply_parent_uri: create.record.reply?.parent.uri,
-          reply_parent_did: create.record.reply
-            ? new AtUri(create.record.reply.parent.uri).host
-            : undefined,
+          reply_parent_did: hostnameFromUri(create.record.reply?.parent.uri),
           reply_root_uri: create.record.reply?.root.uri,
-          reply_root_did: create.record.reply
-            ? new AtUri(create.record.reply.root.uri).host
-            : undefined,
+          reply_root_did: hostnameFromUri(create.record.reply?.root.uri),
           indexed_at: createdAt,
           engagement_count: 0,
           properties: JSON.stringify(properties),
@@ -258,4 +254,14 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       .where('indexed_at', '<', cutOffDate.toUTCString())
       .execute()
   }
+}
+
+function hostnameFromUri(uri: string | undefined): string | undefined {
+  if (!uri) return undefined
+
+  try {
+    return new AtUri(uri).host
+  } catch (err) {}
+
+  return undefined
 }
