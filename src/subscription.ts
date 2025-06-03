@@ -4,9 +4,12 @@ import { isMain as isExternalEmbed } from './lexicon/types/app/bsky/embed/extern
 import { Post, Repost } from './db/schema'
 import { PostProperties } from './util/properties'
 import { AtUri } from '@atproto/syntax'
+import { debugLog } from './lib/env'
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleOps(ops: OperationsByType) {
+    let t0 = performance.now()
+
     let batchProcessDate = new Date().toISOString()
 
     let identityUpdateDids = ops.identityEvents
@@ -176,6 +179,8 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       }
     }
 
+    debugLog(`Processed posts in application at ${Math.round(performance.now() - t0)}`)
+
     if (postsToUpdateOrCreate.length > 0) {
       // Final deduplication to ensure no duplicate URIs
       const uniquePosts = postsToUpdateOrCreate.reduce((acc, post) => {
@@ -193,6 +198,8 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           })))
         .execute()
     }
+
+    debugLog(`Updated posts in db at ${Math.round(performance.now() - t0)}`)
 
     let postsToDelete = ops.posts.deletes
       .map((x) => x.uri)
@@ -253,6 +260,8 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       .deleteFrom('repost')
       .where('indexed_at', '<', cutOffDate.toUTCString())
       .execute()
+
+    debugLog(`Deleted old posts/reposts at ${Math.round(performance.now() - t0)}`)
   }
 }
 
