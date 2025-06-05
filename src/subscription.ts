@@ -26,8 +26,17 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
 
       let knownProfileDids = res.map(x => x.did)
 
+      const profileUpdatedDids = new Set<string>()
       const profileUpdates = ops.identityEvents
         .filter(x => knownProfileDids.includes(x.did))
+        .filter(x => {
+          if (profileUpdatedDids.has(x.did)) {
+            return false
+          }
+          profileUpdatedDids.add(x.did)
+          return true
+        })
+
         .map(update => ({
           did: update.did,
           handle: update.handle,
