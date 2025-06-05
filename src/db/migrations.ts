@@ -226,13 +226,3 @@ migrations['005'] = {
       .execute()
   },
 }
-
-migrations['006'] = {
-  async up(db: Kysely<unknown>) {
-    await db.schema
-      .createTable('engagement')
-      .addColumn('uri', 'varchar', (col) => col.primaryKey().references('post.uri').onDelete('cascade'))
-      .addColumn('total', 'integer', (col) => col.notNull())
-      .execute()
-  },
-}

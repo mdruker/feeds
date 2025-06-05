@@ -85,7 +85,6 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
               .onRef('author_follow.target_did', '=', 'post.author_did')
               .on('author_follow.source_did', '=', requesterDid),
           )
-          .innerJoin('engagement', 'post.uri', 'engagement.uri')
 
         if (settings.include_replies) {
           query = query
@@ -105,10 +104,10 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
 
         return query
           .where('post.indexed_at', '>', cutOffDate.toISOString())
-          .select(['post.uri', 'post.cid', 'post.indexed_at', 'post.author_did', 'engagement.total', 'author_follow.actor_score'])
+          .select(['post.uri', 'post.cid', 'post.indexed_at', 'post.author_did', 'post.engagement_count', 'author_follow.actor_score'])
           .select(
             sql<number>`row_number
-            () over (partition by post.author_did order by engagement.total desc)`
+            () over (partition by post.author_did order by post.engagement_count desc)`
               .as('rn'))
       },
     )
