@@ -5,6 +5,7 @@ import { Post, Repost } from './db/schema'
 import { PostProperties } from './util/properties'
 import { AtUri } from '@atproto/syntax'
 import { debugLog } from './lib/env'
+import { sql } from 'kysely'
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleOps(ops: OperationsByType) {
@@ -102,7 +103,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
 
     let postUrisToCreateOrUpdate: Set<string> = new Set()
 
-    let postsToUpdateOrCreate = ops.posts.creates
+    let postsToCreate = ops.posts.creates
       .filter(create => new Date(create.record.createdAt) > archivedPostCutoff)
       .filter(create => {
         if (postUrisToCreateOrUpdate.has(create.uri)) {
@@ -146,6 +147,16 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         return newVar
       })
 
+    if (postsToCreate.length > 0) {
+      await this.db
+        .insertInto('post')
+        .values(postsToCreate)
+        .onConflict((oc) => oc.doNothing())
+        .execute()
+    }
+
+    debugLog(`Inserted new posts in db at ${Math.round(performance.now() - t0)}`)
+
     let postsToUpdateReplyCounts = ops.posts.creates
       .map((x) => x.record.reply?.parent.uri)
       .filter((x) => x != null)
@@ -154,52 +165,39 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     let postsToRepost = ops.reposts.creates
       .map((x) => x.record.subject.uri)
 
-    let postsToUpdateEngagement = [...new Set(postsToUpdateReplyCounts.concat(postsToLike).concat(postsToRepost))]
-
+    // Calculate engagement count increments
+    let postsToUpdateEngagement = postsToUpdateReplyCounts.concat(postsToLike).concat(postsToRepost)
+    
     if (postsToUpdateEngagement.length > 0) {
-      let posts = await this.db
-        .selectFrom('post')
-        .selectAll()
-        .where('uri', 'in', postsToUpdateEngagement)
-        .execute()
+      // Count how many times each post URI appears in engagement events
+      let engagementCounts = new Map<string, number>()
 
-      for (let post of posts) {
-        if (!postUrisToCreateOrUpdate.has(post.uri)) {
-          postsToUpdateOrCreate.push(post)
-          postUrisToCreateOrUpdate.add(post.uri)
-        }
+      for (let postUri of postsToUpdateEngagement) {
+        engagementCounts.set(postUri, (engagementCounts.get(postUri) || 0) + 1)
       }
-    }
-
-    let postsToUpdateList = postsToLike.concat(postsToUpdateEngagement).concat(postsToRepost)
-    for (let postUri of postsToUpdateList) {
-      let i = postsToUpdateOrCreate.findIndex(x => x.uri === postUri)
-      if (i >= 0) {
-        postsToUpdateOrCreate[i].engagement_count = postsToUpdateOrCreate[i].engagement_count + 1
-      }
-    }
-
-    debugLog(`Processed posts in application at ${Math.round(performance.now() - t0)}`)
-
-    if (postsToUpdateOrCreate.length > 0) {
-      // Final deduplication to ensure no duplicate URIs
-      const uniquePosts = postsToUpdateOrCreate.reduce((acc, post) => {
-        acc.set(post.uri, post)
-        return acc
-      }, new Map<string, typeof postsToUpdateOrCreate[0]>())
+      const engagementUpdates = Array.from(engagementCounts.entries())
+        .map(([uri, count]) => ({ uri, increment: count }))
 
       await this.db
-        .insertInto('post')
-        .values(Array.from(uniquePosts.values()))
-        .onConflict((oc) => oc
-          .constraint('post_pkey')
-          .doUpdateSet((eb) => ({
-            engagement_count: eb.ref('excluded.engagement_count'),
-          })))
+        .with('update_values', db =>
+          sql<{ uri: string; increment: number }>`(
+            SELECT uri, increment::integer FROM (VALUES ${sql.join(
+              engagementUpdates.map(row => 
+                      sql`(${row.uri}, ${row.increment})`
+              )
+            )}) AS t(uri, increment)
+           )`
+        )
+        .updateTable('post')
+        .set({
+          engagement_count: sql`post.engagement_count + update_values.increment`,
+        })
+        .from('update_values')
+        .whereRef('post.uri', '=', sql`update_values.uri`)
         .execute()
     }
 
-    debugLog(`Updated posts in db at ${Math.round(performance.now() - t0)}`)
+    debugLog(`Updated engagement counts in db at ${Math.round(performance.now() - t0)}`)
 
     let postsToDelete = ops.posts.deletes
       .map((x) => x.uri)
