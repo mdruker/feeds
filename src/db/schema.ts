@@ -5,6 +5,7 @@ export type DatabaseSchema = {
   actor: Actor
   follow: Follow
   post: Post
+  engagement: Engagement
   auth_session: AuthSession
   auth_state: AuthState
   admin: Admin
@@ -44,6 +45,11 @@ export type Post = {
   indexed_at: string
   engagement_count: number
   properties: string | undefined
+}
+
+export type Engagement = {
+  uri: string
+  total: number
 }
 
 export type AuthSession = {

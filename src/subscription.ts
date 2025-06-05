@@ -162,6 +162,18 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .values(postsToCreate)
         .onConflict((oc) => oc.doNothing())
         .execute()
+
+      let engagementToCreate = postsToCreate
+        .map(p => ({
+          uri: p.uri,
+          total: 0,
+        }))
+
+      await this.db
+        .insertInto('engagement')
+        .values(engagementToCreate)
+        .onConflict((oc) => oc.doNothing())
+        .execute()
     }
 
     debugLog(`Inserted new posts in db at ${Math.round(performance.now() - t0)}`)
@@ -197,12 +209,12 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
             )}) AS t(uri, increment)
            )`
         )
-        .updateTable('post')
+        .updateTable('engagement')
         .set({
-          engagement_count: sql`post.engagement_count + update_values.increment`,
+          total: sql`engagement.total + update_values.increment`,
         })
         .from('update_values')
-        .whereRef('post.uri', '=', sql`update_values.uri`)
+        .whereRef('engagement.uri', '=', sql`update_values.uri`)
         .execute()
     }
 
