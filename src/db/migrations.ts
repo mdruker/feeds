@@ -167,20 +167,6 @@ migrations['001'] = {
       .columns(['author_did', 'indexed_at'])
       .execute()
   },
-
-  async down(db: Kysely<unknown>) {
-    await db.schema.dropTable('sub_state').execute()
-    await db.schema.dropTable('actor').execute()
-    await db.schema.dropTable('follow').execute()
-    await db.schema.dropTable('post').execute()
-    await db.schema.dropTable('auth_session').execute()
-    await db.schema.dropTable('auth_state').execute()
-    await db.schema.dropTable('admin').execute()
-    await db.schema.dropTable('feed_settings').execute()
-    await db.schema.dropTable('profile').execute()
-    await db.schema.dropTable('job').execute()
-    await db.schema.dropTable('repost').execute()
-  },
 }
 
 migrations['002'] = {
@@ -189,14 +175,6 @@ migrations['002'] = {
       .alterTable('post')
       .addColumn('reply_parent_did', 'varchar')
       .addColumn('reply_root_did', 'varchar')
-      .execute()
-  },
-
-  async down(db: Kysely<unknown>) {
-    await db.schema
-      .alterTable('post')
-      .dropColumn('reply_parent_did')
-      .dropColumn('reply_root_did')
       .execute()
   },
 }
@@ -227,18 +205,6 @@ migrations['003'] = {
       .columns(['author_did', 'engagement_count desc'])
       .execute()
   },
-
-  async down(db: Kysely<unknown>) {
-    await db.schema
-      .alterTable('post')
-      .dropColumn('engagement_count')
-      .execute()
-
-    await db.schema
-      .alterTable('post')
-      .dropIndex('idx_post_author_engagement')
-      .execute()
-  },
 }
 
 migrations['004'] = {
@@ -247,13 +213,6 @@ migrations['004'] = {
       .createIndex('idx_post_indexed_at_desc')
       .on('post')
       .column('indexed_at desc')
-      .execute()
-  },
-
-  async down(db: Kysely<unknown>) {
-    await db.schema
-      .alterTable('post')
-      .dropIndex('idx_post_indexed_at_desc')
       .execute()
   },
 }
@@ -266,13 +225,6 @@ migrations['005'] = {
       .column('indexed_at desc')
       .execute()
   },
-
-  async down(db: Kysely<unknown>) {
-    await db.schema
-      .alterTable('repost')
-      .dropIndex('idx_repost_indexed_at_desc')
-      .execute()
-  },
 }
 
 migrations['006'] = {
@@ -281,12 +233,6 @@ migrations['006'] = {
       .createTable('engagement')
       .addColumn('uri', 'varchar', (col) => col.primaryKey().references('post.uri').onDelete('cascade'))
       .addColumn('total', 'integer', (col) => col.notNull())
-      .execute()
-  },
-
-  async down(db: Kysely<unknown>) {
-    await db.schema
-      .dropTable('engagement')
       .execute()
   },
 }
