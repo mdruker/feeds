@@ -187,22 +187,20 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       const engagementUpdates = Array.from(engagementCounts.entries())
         .map(([uri, count]) => ({ uri, increment: count }))
 
+      await sql`truncate table ${sql.table('temp_engagement')}`.execute(this.db)
+
       await this.db
-        .with('update_values', db =>
-          sql<{ uri: string; increment: number }>`(
-            SELECT uri, increment::integer FROM (VALUES ${sql.join(
-              engagementUpdates.map(row => 
-                      sql`(${row.uri}, ${row.increment})`
-              )
-            )}) AS t(uri, increment)
-           )`
-        )
+        .insertInto('temp_engagement')
+        .values(engagementUpdates)
+        .execute()
+
+      await this.db
         .updateTable('post')
+        .from('temp_engagement')
         .set({
-          engagement_count: sql`post.engagement_count + update_values.increment`,
+          engagement_count: sql`post.engagement_count + temp_engagement.increment`,
         })
-        .from('update_values')
-        .whereRef('post.uri', '=', sql`update_values.uri`)
+        .whereRef('post.uri', '=','temp_engagement.uri')
         .execute()
     }
 

@@ -1,8 +1,9 @@
-import { Kysely, Migrator, PostgresDialect, SqliteDialect } from 'kysely'
+import { Kysely, Migrator, PostgresDialect } from 'kysely'
 import { Pool } from 'pg'
 import { DatabaseSchema } from './schema'
 import { migrationProvider } from './migrations'
 import { isDevelopment } from '../lib/env'
+import { replaceNumberedParams } from '../util/sql-parameter-replacer'
 
 export const createDb = (): Database => {
   return new Kysely<DatabaseSchema>({
@@ -20,6 +21,10 @@ export const createDb = (): Database => {
       })
     }),
     log: (event) => {
+      // For easier debugging of queries:
+      // let map = event.query.parameters.map(p => p)
+      // let queryString = replaceNumberedParams(event.query.sql, map)
+
       if (isDevelopment() && event.level === 'error') {
         console.log('Query:', event.query.sql)
         console.log('Parameters:', event.query.parameters)

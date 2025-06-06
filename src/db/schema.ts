@@ -12,6 +12,7 @@ export type DatabaseSchema = {
   profile: Profile
   job: Job
   repost: Repost
+  temp_engagement: TempEngagement
 }
 
 export type SubState = {
@@ -98,4 +99,9 @@ export type Repost = {
   author_did: string
   post_uri: string
   indexed_at: string
+}
+
+export type TempEngagement = {
+  uri: string
+  increment: number
 }
