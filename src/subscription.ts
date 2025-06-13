@@ -184,24 +184,24 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       for (let postUri of postsToUpdateEngagement) {
         engagementCounts.set(postUri, (engagementCounts.get(postUri) || 0) + 1)
       }
-      const engagementUpdates = Array.from(engagementCounts.entries())
-        .map(([uri, count]) => ({ uri, increment: count }))
 
-      await sql`truncate table ${sql.table('temp_engagement')}`.execute(this.db)
+      const engagementsByCount = engagementCounts.entries().reduce((acc, item) => {
+        if (!acc.has(item[1])) {
+          acc.set(item[1], []);
+        }
+        acc.get(item[1])!.push(item[0]);
+        return acc;
+      }, new Map<number, string[]>());
 
-      await this.db
-        .insertInto('temp_engagement')
-        .values(engagementUpdates)
-        .execute()
-
-      await this.db
-        .updateTable('post')
-        .from('temp_engagement')
-        .set({
-          engagement_count: sql`post.engagement_count + temp_engagement.increment`,
-        })
-        .whereRef('post.uri', '=','temp_engagement.uri')
-        .execute()
+      for (let [count, uris] of engagementsByCount.entries()) {
+        await this.db
+          .updateTable('post')
+          .set({
+            engagement_count: sql`engagement_count + ${count}`,
+          })
+          .where('uri', 'in', uris)
+          .execute()
+      }
     }
 
     debugLog(`Updated engagement counts in db at ${Math.round(performance.now() - t0)}`)
