@@ -76,7 +76,7 @@ export async function populateActor(
     await db
       .insertInto('follow')
       .values(followsCreate.slice(i, i + maxRowsToInsert))
-      .onConflict((oc) => oc.doNothing())
+      .ignore()
       .execute()
   }
 
@@ -88,7 +88,7 @@ export async function populateActor(
       did: requesterDid,
       created_at: new Date(),
     })
-    .onConflict((oc) => oc.doNothing())
+    .ignore()
     .execute()
   console.log(`Added ${requesterDid} / ${actorResponse.data.handle}, with ${followsCreate.length} follows`)
 }

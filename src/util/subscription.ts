@@ -4,6 +4,7 @@ import { Jetstream, CommitType, CommitEvent, IdentityEvent } from '@skyware/jets
 import WebSocket, { CLOSED, OPEN } from 'ws'
 import { Semaphore } from 'async-mutex'
 import Queue from 'yocto-queue'
+import { sql } from 'kysely'
 
 const semaphore = new Semaphore(128)
 
@@ -162,9 +163,9 @@ export abstract class FirehoseSubscriptionBase {
     await this.db
       .insertInto('sub_state')
       .values({ service: JETSTREAM_ENDPOINT, cursor: cursor})
-      .onConflict((oc) => oc
-        .constraint('sub_state_pkey')
-        .doUpdateSet( {cursor}))
+      .onDuplicateKeyUpdate({
+        cursor: cursor
+      })
       .execute()
   }
 

@@ -45,9 +45,10 @@ export async function updateSettings(ctx: AppContext, actorDid: string, settings
       settings: settingsJson,
       updated_at: new Date(),
     })
-    .onConflict((oc) => oc
-      .columns(['actor_did', 'shortname'])
-      .doUpdateSet({ settings: settingsJson, updated_at: new Date() }))
+    .onDuplicateKeyUpdate({
+      settings: sql`VALUES(settings)`,
+      updated_at: sql`VALUES(updated_at)`
+    })
     .execute()
 }
 

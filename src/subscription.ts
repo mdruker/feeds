@@ -47,12 +47,10 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         await this.db
           .insertInto('profile')
           .values(profileUpdates)
-          .onConflict((oc) => oc
-            .constraint('profile_pkey')
-            .doUpdateSet({
-              handle: (eb) => eb.ref('excluded.handle'),
-              updated_at: (eb) => eb.ref('excluded.updated_at')
-            }))
+          .onDuplicateKeyUpdate({
+            handle: sql`VALUES(handle)`,
+            updated_at: sql`VALUES(updated_at)`
+          })
           .execute()
       }
     }
@@ -79,7 +77,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       await this.db
         .insertInto('follow')
         .values(followsToCreate)
-        .onConflict((oc) => oc.doNothing())
+        .ignore()
         .execute()
     }
 
@@ -160,7 +158,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       await this.db
         .insertInto('post')
         .values(postsToCreate)
-        .onConflict((oc) => oc.doNothing())
+        .ignore()
         .execute()
     }
 
@@ -237,7 +235,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       await this.db
         .insertInto('repost')
         .values(repostsToCreate)
-        .onConflict((oc) => oc.doNothing())
+        .ignore()
         .execute()
     }
 
