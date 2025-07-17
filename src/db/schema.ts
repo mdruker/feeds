@@ -22,14 +22,14 @@ export type SubState = {
 
 export type Actor = {
   did: string
-  created_at: string
+  created_at: Date
 }
 
 export type Follow = {
   uri: string
   source_did: string
   target_did: string
-  created_at: string
+  created_at: Date
   actor_score: number
 }
 
@@ -41,7 +41,7 @@ export type Post = {
   reply_parent_did: string | undefined
   reply_root_uri: string | undefined
   reply_root_did: string | undefined
-  indexed_at: string
+  indexed_at: Date
   engagement_count: number
   properties: string | undefined
 }
@@ -68,7 +68,7 @@ export type FeedSettings = {
   shortname: string
   actor_did: string
   settings: SettingsJson,
-  updated_at: string
+  updated_at: Date
 }
 
 type SettingsJson = string
@@ -76,7 +76,7 @@ type SettingsJson = string
 export type Profile = {
   did: string
   handle: string | undefined
-  updated_at: string
+  updated_at: Date
 }
 
 export type Job = {
@@ -85,8 +85,8 @@ export type Job = {
   payload: string // JSON payload
   status: 'pending' | 'running' | 'completed' | 'failed'
   owner_pid: string | null
-  created_at: string
-  updated_at: string
+  created_at: Date
+  updated_at: Date
   error: string | null
   failure_count: number
   run_after: string | null
@@ -97,5 +97,5 @@ export type Repost = {
   cid: string
   author_did: string
   post_uri: string
-  indexed_at: string
+  indexed_at: Date
 }

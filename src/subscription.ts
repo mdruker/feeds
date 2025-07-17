@@ -11,7 +11,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleOps(ops: OperationsByType) {
     let t0 = performance.now()
 
-    let batchProcessDate = new Date().toISOString()
+    let batchProcessDate = new Date()
 
     let identityUpdateDids = ops.identityEvents
       .filter(x => x.handle)
@@ -123,7 +123,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         }
       })
       .map((create) => {
-        let createdAt = new Date(create.record.createdAt).toISOString()
+        let createdAt = new Date(create.record.createdAt)
         if (batchProcessDate < createdAt) {
           // Future-dated posts shouldn't go to the top of the feed.
           createdAt = batchProcessDate
@@ -218,7 +218,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     let repostsToCreate = ops.reposts.creates
       .filter(create => new Date(create.record.createdAt) > archivedPostCutoff)
       .map((create) => {
-        let createdAt = new Date(create.record.createdAt).toISOString()
+        let createdAt = new Date(create.record.createdAt)
         if (batchProcessDate < createdAt) {
           // Future-dated records shouldn't go to the top of the feed.
           createdAt = batchProcessDate
@@ -258,12 +258,12 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
 
     await this.db
       .deleteFrom('post')
-      .where('indexed_at', '<', cutOffDate.toUTCString())
+      .where('indexed_at', '<', cutOffDate)
       .execute()
 
     await this.db
       .deleteFrom('repost')
-      .where('indexed_at', '<', cutOffDate.toUTCString())
+      .where('indexed_at', '<', cutOffDate)
       .execute()
 
     debugLog(`Deleted old posts/reposts at ${Math.round(performance.now() - t0)}`)

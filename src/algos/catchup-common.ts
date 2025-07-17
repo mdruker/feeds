@@ -43,11 +43,11 @@ export async function updateSettings(ctx: AppContext, actorDid: string, settings
       actor_did: actorDid,
       shortname: 'catchup',
       settings: settingsJson,
-      updated_at: new Date().toISOString(),
+      updated_at: new Date(),
     })
     .onConflict((oc) => oc
       .columns(['actor_did', 'shortname'])
-      .doUpdateSet({ settings: settingsJson, updated_at: new Date().toISOString() }))
+      .doUpdateSet({ settings: settingsJson, updated_at: new Date() }))
     .execute()
 }
 
@@ -134,7 +134,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
           sql<number>`count(*) over (partition by post_uri)`.as('repost_count'),
           sql<number>`row_number() over (partition by post_uri order by repost.indexed_at asc)`.as('repost_rn')
         ])
-        .where('repost.indexed_at', '>', cutOffDate.toISOString())
+        .where('repost.indexed_at', '>', cutOffDate)
     })
     .with('postCount', (db => {
       return db

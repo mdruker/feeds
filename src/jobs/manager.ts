@@ -12,7 +12,7 @@ export class JobManager {
   constructor(private db: Database) {}
 
   async createJob(type: string, payload: any) {
-    let now = new Date().toISOString()
+    let now = new Date()
     const insertData: Insertable<Job> = {
       type,
       payload: JSON.stringify(payload),
@@ -56,7 +56,7 @@ export class JobManager {
         .set({
           status: 'running',
           owner_pid: processId,
-          updated_at: new Date().toISOString(),
+          updated_at: new Date(),
         })
         .execute()
 
@@ -90,7 +90,7 @@ export class JobManager {
       .set((eb) => ({
         status: status,
         error: error || null,
-        updated_at: new Date().toISOString(),
+        updated_at: new Date(),
         owner_pid: null,
         failure_count: failureCount,
         run_after: runAfter
@@ -105,11 +105,11 @@ export class JobManager {
     await this.db
       .updateTable('job')
       .where('status', '=', 'running')
-      .where('updated_at', '<', cutOffDate.toISOString())
+      .where('updated_at', '<', cutOffDate)
       .set({
         status: 'pending',
         owner_pid: null,
-        updated_at: now.toISOString(),
+        updated_at: now,
       })
       .execute()
   }
@@ -121,7 +121,7 @@ export class JobManager {
     await this.db
       .deleteFrom('job')
       .where('status', 'in', ['completed', 'failed'])
-      .where('updated_at', '<', cutOffDate.toISOString())
+      .where('updated_at', '<', cutOffDate)
       .execute()
   }
 }

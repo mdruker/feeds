@@ -1,24 +1,25 @@
-import { Kysely, Migrator, PostgresDialect } from 'kysely'
-import { Pool } from 'pg'
+import { Kysely, Migrator, MysqlDialect } from 'kysely'
+import { createPool } from 'mysql2'
 import { DatabaseSchema } from './schema'
 import { migrationProvider } from './migrations'
 import { isDevelopment } from '../lib/env'
-import { replaceNumberedParams } from '../util/sql-parameter-replacer'
 
 export const createDb = (): Database => {
   return new Kysely<DatabaseSchema>({
-    dialect: new PostgresDialect({
-      pool: new Pool({
-        user: 'postgres',
-        database: 'postgres',
-        password: process.env.DATABASE_PASSWORD,
+    dialect: new MysqlDialect({
+      pool: createPool({
+        database: process.env.MYSQL_DATABASE,
         host: process.env.DATABASE_URL,
-        port: process.env.DATABASE_PORT,
-        ssl: process.env.DATABASE_SSL_CERT ? {
-          rejectUnauthorized: false,
-          cert: process.env.DATABASE_SSL_CERT,
-        } : null,
-      })
+        user: process.env.MYSQL_USER,
+        password: process.env.MYSQL_USER_PASSWORD,
+        typeCast(field, next) {
+          if (field.type === 'TINY' && field.length === 1) {
+            return field.string() === '1'
+          } else {
+            return next()
+          }
+        },
+      }),
     }),
     log: (event) => {
       // For easier debugging of queries:

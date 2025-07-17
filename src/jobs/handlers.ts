@@ -101,7 +101,7 @@ jobHandlers.register({
       newProfiles.push({
         'did': did,
         'handle': handle,
-        'updated_at': new Date().toISOString()
+        'updated_at': new Date()
       })
 
       if (newProfiles.length % 1000 === 0) {

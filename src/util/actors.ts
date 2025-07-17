@@ -67,7 +67,7 @@ export async function populateActor(
     uri: follow.uri,
     source_did: follow.uri.split('/')[2],
     target_did: follow.value.subject,
-    created_at: new Date(follow.value.createdAt).toISOString(),
+    created_at: new Date(follow.value.createdAt),
     actor_score: 0,
   }))
 
@@ -86,7 +86,7 @@ export async function populateActor(
     .insertInto('actor')
     .values({
       did: requesterDid,
-      created_at: new Date().toISOString(),
+      created_at: new Date(),
     })
     .onConflict((oc) => oc.doNothing())
     .execute()
