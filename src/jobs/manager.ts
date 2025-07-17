@@ -27,10 +27,9 @@ export class JobManager {
     const result = await this.db
       .insertInto('job')
       .values(insertData)
-      .returning('id')
       .executeTakeFirst()
 
-    return result?.id
+    return result.insertId ? Number(result.insertId) : undefined
   }
 
   async claimNextJob(processId: string, jobTypes: string[]): Promise<Selectable<Job> | null> {
@@ -87,14 +86,14 @@ export class JobManager {
     await this.db
       .updateTable('job')
       .where('id', '=', job.id)
-      .set((eb) => ({
+      .set({
         status: status,
         error: error || null,
         updated_at: new Date(),
         owner_pid: null,
         failure_count: failureCount,
         run_after: runAfter
-      }))
+      })
       .execute()
   }
 

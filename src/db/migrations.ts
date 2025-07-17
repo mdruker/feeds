@@ -79,12 +79,12 @@ migrations['001'] = {
     await db.schema
       .createTable('auth_session')
       .addColumn('key', 'varchar(255)', (col) => col.primaryKey())
-      .addColumn('session', 'varchar(1023)', (col) => col.notNull())
+      .addColumn('session', 'text', (col) => col.notNull())
       .execute()
     await db.schema
       .createTable('auth_state')
       .addColumn('key', 'varchar(255)', (col) => col.primaryKey())
-      .addColumn('state', 'varchar(1023)', (col) => col.notNull())
+      .addColumn('state', 'text', (col) => col.notNull())
       .execute()
 
     await db.schema
@@ -97,7 +97,7 @@ migrations['001'] = {
       .addColumn('actor_did', 'varchar(255)', (col) => col.notNull())
       .addColumn('shortname', 'varchar(255)', (col) => col.notNull())
       .addColumn('updated_at', 'datetime', (col) => col.notNull())
-      .addColumn('settings', 'varchar(1023)')
+      .addColumn('settings', 'text')
       .execute()
     await db.schema
       .createIndex('idx_feed_settings_actor_shortname')
