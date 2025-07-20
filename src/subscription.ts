@@ -119,8 +119,8 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           uri: create.uri,
           cid: create.cid,
           author_did: create.author,
-          reply_parent_uri: create.record.reply?.parent.uri,
-          reply_root_uri: create.record.reply?.root.uri,
+          reply_parent_uri: create.record.reply?.parent?.uri,
+          reply_root_uri: create.record.reply?.root?.uri,
           indexed_at: createdAt,
           num_likes: 0,
           num_replies: 0,
@@ -131,7 +131,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       })
 
     let postsToUpdateReplyCounts = ops.posts.creates
-      .map((x) => x.record.reply?.parent.uri)
+      .map((x) => x.record.reply?.parent?.uri)
       .filter((x) => x != null)
     let postsToLike = ops.likes.creates
       .map((x) => x.record.subject.uri)
