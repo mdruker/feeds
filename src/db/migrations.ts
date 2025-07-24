@@ -61,16 +61,6 @@ migrations['001'] = {
       .column('indexed_at')
       .execute()
     await db.schema
-      .createIndex('idx_post_indexed_at_desc')
-      .on('post')
-      .column('indexed_at desc')
-      .execute()
-    await db.schema
-      .createIndex('idx_post_author_indexed_at')
-      .on('post')
-      .columns(['author_did', 'indexed_at'])
-      .execute()
-    await db.schema
       .createIndex('idx_post_author_engagement')
       .on('post')
       .columns(['author_did', 'engagement_count desc'])

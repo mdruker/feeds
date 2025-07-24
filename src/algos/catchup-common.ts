@@ -58,9 +58,6 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   const settings = await getSettingsWithDefaults(ctx, requesterDid)
   debugLog(`Got settings at ${Math.round(performance.now() - t0)}`)
 
-  let cutOffDate = new Date()
-  cutOffDate.setHours(cutOffDate.getHours() - 24)
-
   let cursorDate: Date
   let cursorCid: string
 
@@ -104,7 +101,6 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
         }
 
         return query
-          .where('post.indexed_at', '>', cutOffDate.toISOString())
           .select(['post.uri', 'post.cid', 'post.indexed_at', 'post.author_did', 'post.engagement_count', 'author_follow.actor_score'])
           .select(
             sql<number>`row_number
@@ -135,7 +131,6 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
           sql<number>`count(*) over (partition by post_uri)`.as('repost_count'),
           sql<number>`row_number() over (partition by post_uri order by repost.indexed_at asc)`.as('repost_rn')
         ])
-        .where('repost.indexed_at', '>', cutOffDate)
     })
     .with('postCount', (db => {
       return db
