@@ -40,7 +40,7 @@ export class JobManager {
         .where('status', '=', 'pending')
         .where('type', 'in', jobTypes)
         .where((eb) =>
-          eb('run_after', 'is', null).or('run_after', '<', new Date().toISOString())
+          eb('run_after', 'is', null).or('run_after', '<', new Date())
         )
         .orderBy('created_at', 'asc')
         .limit(1)
@@ -66,7 +66,7 @@ export class JobManager {
   async completeJob(job: Selectable<Job>, error?: string) {
     let status = job.status
     let failureCount = job.failure_count
-    let runAfter: string | null = null
+    let runAfter: Date | null = null
     if (!error) {
       status = 'completed'
     } else {
@@ -79,7 +79,7 @@ export class JobManager {
         let date = new Date()
         let backoffSeconds = SECONDS_BACKOFF_AFTER_FAILURE.at(failureCount) || 120
         date.setSeconds(date.getSeconds() + backoffSeconds)
-        runAfter = date.toISOString()
+        runAfter = date
       }
     }
 

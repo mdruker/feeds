@@ -89,7 +89,7 @@ export type Job = {
   updated_at: Date
   error: string | null
   failure_count: number
-  run_after: string | null
+  run_after: Date | null
 }
 
 export type Repost = {

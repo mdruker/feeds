@@ -167,9 +167,9 @@ migrations['001'] = {
       .columns(['post_uri', 'indexed_at'])
       .execute()
     await db.schema
-      .createIndex('idx_repost_author_indexed_at')
+      .createIndex('idx_repost_author_indexed_at_desc')
       .on('repost')
-      .columns(['author_did', 'indexed_at'])
+      .columns(['author_did', 'indexed_at desc'])
       .execute()
   },
 }
