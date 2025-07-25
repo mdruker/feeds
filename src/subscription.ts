@@ -248,6 +248,8 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
 
+    debugLog(`Updated reposts at ${Math.round(performance.now() - t0)}`)
+
     console.log(`${ops.posts.creates.length} posts created, ${postsToDelete.length} post deletes, ${ops.reposts.creates.length} reposts created, ${followsToCreate.length} follows added, ${followsDeleted} follows deleted, ${ops.follows.creates.length} total new follows`)
 
     // Not part of the firehose, but we want to delete stuff that's too old.
@@ -257,11 +259,13 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     await this.db
       .deleteFrom('post')
       .where('indexed_at', '<', cutOffDate)
+      .limit(10000)
       .execute()
 
     await this.db
       .deleteFrom('repost')
       .where('indexed_at', '<', cutOffDate)
+      .limit(10000)
       .execute()
 
     debugLog(`Deleted old posts/reposts at ${Math.round(performance.now() - t0)}`)
