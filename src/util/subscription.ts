@@ -10,7 +10,7 @@ const semaphore = new Semaphore(128)
 
 const JETSTREAM_ENDPOINT = 'wss://jetstream2.us-east.bsky.network/subscribe'
 
-const BATCH_SIZE = 3000
+const BATCH_SIZE = 10000
 
 export abstract class FirehoseSubscriptionBase {
   public jetstream: Jetstream

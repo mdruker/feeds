@@ -15,6 +15,7 @@ import { webRouter } from './web/handlers'
 import path from 'node:path'
 import { JobManager } from './jobs/manager'
 import { JobWorker } from './jobs/worker'
+import { CleanupService } from './util/cleanup'
 
 export class FeedGenerator {
   public app: express.Application
@@ -23,6 +24,7 @@ export class FeedGenerator {
   public jobManager: JobManager
   public jobWorker: JobWorker
   public firehose: FirehoseSubscription
+  public cleanup: CleanupService
   public cfg: Config
 
   constructor(
@@ -31,6 +33,7 @@ export class FeedGenerator {
     jobManager: JobManager,
     jobWorker: JobWorker,
     firehose: FirehoseSubscription,
+    cleanup: CleanupService,
     cfg: Config,
   ) {
     this.app = app
@@ -38,6 +41,7 @@ export class FeedGenerator {
     this.jobManager = jobManager
     this.jobWorker = jobWorker
     this.firehose = firehose
+    this.cleanup = cleanup
     this.cfg = cfg
   }
 
@@ -54,6 +58,7 @@ export class FeedGenerator {
 
     const jobManager = new JobManager(db)
     const jobWorker = new JobWorker(jobManager, db, didResolver)
+    const cleanup = new CleanupService(db)
 
     const server = createServer({
       validateResponse: true,
@@ -90,13 +95,14 @@ export class FeedGenerator {
 
     app.use((_req, res) => res.sendStatus(404))
 
-    return new FeedGenerator(app, db, jobManager, jobWorker, firehose, cfg)
+    return new FeedGenerator(app, db, jobManager, jobWorker, firehose, cleanup, cfg)
   }
 
   async start(): Promise<http.Server> {
     await migrateToLatest(this.db)
     this.jobWorker.start()
     this.firehose.run()
+    this.cleanup.start()
     this.server = this.app.listen(this.cfg.port, this.cfg.listenhost, () => {
       console.log(`App listening on port ${this.cfg.port}`)
     })
