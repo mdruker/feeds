@@ -7,11 +7,19 @@ import { AtUri } from '@atproto/syntax'
 import { debugLog } from './lib/env'
 import { sql } from 'kysely'
 
+const ARCHIVED_POST_CUTOFF_HOURS = 24*7
+
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleOps(ops: OperationsByType) {
-    let t0 = performance.now()
+    const batchProcessDate = new Date()
+    await Promise.all([
+      this.handleMain(ops, batchProcessDate),
+      this.handleReposts(ops, batchProcessDate)
+    ])
+  }
 
-    let batchProcessDate = new Date()
+  async handleMain(ops: OperationsByType, batchProcessDate: Date) {
+    let t0 = performance.now()
 
     let identityUpdateDids = ops.identityEvents
       .filter(x => x.handle)
@@ -104,7 +112,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
 
     // We don't want backdated posts in our feeds.
     let archivedPostCutoff = new Date()
-    archivedPostCutoff.setHours(archivedPostCutoff.getHours() - 24*7)
+    archivedPostCutoff.setHours(archivedPostCutoff.getHours() - ARCHIVED_POST_CUTOFF_HOURS)
 
     // This is where we'd filter by known follows, if we wanted to.
 
@@ -213,7 +221,19 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
 
-    let repostsToCreate = ops.reposts.creates
+    console.log(`Processed ${ops.posts.creates.length} posts created, ${postsToDelete.length} post deletes, etc. ${Math.round(performance.now() - t0)}`)
+
+  }
+
+  async handleReposts(ops: OperationsByType, batchProcessDate: Date) {
+    let t0 = performance.now()
+
+    // We don't want backdated posts in our feeds.
+    let archivedPostCutoff = new Date()
+    archivedPostCutoff.setHours(archivedPostCutoff.getHours() - ARCHIVED_POST_CUTOFF_HOURS)
+
+    // Handle repost creates
+    const repostsToCreate = ops.reposts.creates
       .filter(create => new Date(create.record.createdAt) > archivedPostCutoff)
       .map((create) => {
         let createdAt = new Date(create.record.createdAt)
@@ -222,7 +242,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           createdAt = batchProcessDate
         }
 
-        let newVar: Repost = {
+        const newVar: Repost = {
           uri: create.uri,
           cid: create.cid,
           author_did: create.author,
@@ -231,6 +251,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         }
         return newVar
       })
+
     if (repostsToCreate.length > 0) {
       await this.db
         .insertInto('repost')
@@ -239,8 +260,8 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
 
-    let repostsToDelete = ops.reposts.deletes
-      .map((x) => x.uri)
+    // Handle repost deletes
+    const repostsToDelete = ops.reposts.deletes.map((x) => x.uri)
     if (repostsToDelete.length > 0) {
       await this.db
         .deleteFrom('repost')
@@ -248,10 +269,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
 
-    debugLog(`Updated reposts at ${Math.round(performance.now() - t0)}`)
-
-    console.log(`${ops.posts.creates.length} posts created, ${postsToDelete.length} post deletes, ${ops.reposts.creates.length} reposts created, ${followsToCreate.length} follows added, ${followsDeleted} follows deleted, ${ops.follows.creates.length} total new follows`)
-
+    debugLog(`Processed ${repostsToCreate.length} repost creates, ${repostsToDelete.length} repost deletes in ${Math.round(performance.now() - t0)}`)
   }
 }
 
