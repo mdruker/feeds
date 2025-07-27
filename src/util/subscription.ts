@@ -11,6 +11,7 @@ const semaphore = new Semaphore(128)
 const JETSTREAM_ENDPOINT = 'wss://jetstream2.us-east.bsky.network/subscribe'
 
 const BATCH_SIZE = 10000
+const MAX_WAIT_MS = 10000
 
 export abstract class FirehoseSubscriptionBase {
   public jetstream: Jetstream
@@ -95,7 +96,7 @@ export abstract class FirehoseSubscriptionBase {
           console.log(`Lost a race to process a batch`)
         }
 
-        if (opsByType.opsProcessed >= BATCH_SIZE) {
+        if (opsByType.opsProcessed >= BATCH_SIZE || performance.now() - t0 > MAX_WAIT_MS) {
           let t1 = performance.now()
 
           let handledHere = false
