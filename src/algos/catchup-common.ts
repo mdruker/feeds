@@ -188,13 +188,15 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     cursor = new Date(last.indexed_at).getTime().toString(10) + ':' + last.cid
   }
 
+  let numReposts = 0
   const feed: AppBskyFeedDefs.SkeletonFeedPost[] = postResults.map((row) => {
     if (row.post_uri) {
+      numReposts++
       return {
-        post: row.uri,
+        post: row.post_uri,
         reason: {
           $type: 'app.bsky.feed.defs#skeletonReasonRepost',
-          repost: row.post_uri
+          repost: row.uri
         }
       }
     } else {
@@ -204,7 +206,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     }
   })
 
-  debugLog(`Generated feed with ${feed.length} entries at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Generated feed with ${feed.length} entries (${numReposts} reposts) at ${Math.round(performance.now() - t0)}, postsPerAccount: ${postsPerAccount}, repostPercent: ${repostPercent}`)
 
   return {
     cursor,
