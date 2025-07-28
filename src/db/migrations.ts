@@ -51,7 +51,7 @@ migrations['001'] = {
       .addColumn('reply_parent_did', 'varchar(255)')
       .addColumn('reply_root_uri', 'varchar(255)')
       .addColumn('reply_root_did', 'varchar(255)')
-      .addColumn('indexed_at', 'datetime', (col) => col.notNull())
+      .addColumn('indexed_at', 'datetime(6)', (col) => col.notNull())
       .addColumn('engagement_count', 'integer')
       .addColumn('properties', 'varchar(1023)')
       .execute()
@@ -149,7 +149,7 @@ migrations['001'] = {
       .addColumn('cid', 'varchar(255)', (col) => col.notNull())
       .addColumn('author_did', 'varchar(255)', (col) => col.notNull())
       .addColumn('post_uri', 'varchar(255)', (col) => col.notNull())
-      .addColumn('indexed_at', 'datetime', (col) => col.notNull())
+      .addColumn('indexed_at', 'datetime(6)', (col) => col.notNull())
       .execute()
     await db.schema
       .createIndex('idx_repost_indexed_at')
