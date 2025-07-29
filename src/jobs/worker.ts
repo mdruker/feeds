@@ -34,7 +34,7 @@ export class JobWorker {
           const job = await this.jobManager.claimNextJob(PROCESS_ID, jobTypes)
           if (!job) {
             // No jobs available, wait a bit before checking again
-            await new Promise(resolve => setTimeout(resolve, 5000))
+            await new Promise(resolve => setTimeout(resolve, 3000))
             continue
           }
 

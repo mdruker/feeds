@@ -23,8 +23,8 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
     // Enqueue the job to populate the actor
     await populateActor(ctx.db, ctx.didResolver, ctx.jobManager, requesterDid, true)
     
-    // If the job finishes quickly, we can return the feed immediately.
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    // If the job finishes quickly enough, we can return the feed immediately.
+    await new Promise(resolve => setTimeout(resolve, 5000))
     actor = await ctx.db
       .selectFrom('actor')
       .selectAll()
