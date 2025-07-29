@@ -7,6 +7,7 @@ import { AppBskyFeedPost, AtpAgent } from '@atproto/api'
 import { Post } from '../../db/schema'
 import { hasAdminPermission } from '../utils'
 import algos from '../../algos'
+import { Database } from '../../db/database'
 
 const makeRouter = (ctx: AppContext) => {
   const router = express.Router()
@@ -24,19 +25,16 @@ const makeRouter = (ctx: AppContext) => {
     try {
       let posts = await ctx.db
         .selectFrom('post')
-        .selectAll()
+        .select('uri')
         .where('reply_parent_uri', 'is', null)
         .orderBy('indexed_at', 'desc')
         .orderBy('cid', 'desc')
         .limit(100)
         .execute()
-
-      if (posts.length == 0) {
-        return res.sendStatus(204).end()
-      }
+      let postUris = posts.map(x => x.uri)
 
       res.setHeader('Content-Type', 'text/html');
-      res.send(await hydrateFeedHtml(posts));
+      res.send(await hydrateFeedHtml(ctx.db, postUris));
 
     } catch (err) {
       next(err)
@@ -88,12 +86,10 @@ const makeRouter = (ctx: AppContext) => {
         .limit(25)
         .execute()
 
-      if (posts.length == 0) {
-        return res.sendStatus(204).end()
-      }
+      let postUris = posts.map(x => x.uri)
 
       res.setHeader('Content-Type', 'text/html');
-      res.send(await hydrateFeedHtml(posts));
+      res.send(await hydrateFeedHtml(ctx.db, postUris));
 
     } catch (err) {
       next(err)
@@ -139,16 +135,8 @@ const makeRouter = (ctx: AppContext) => {
         return res.status(204).end();
       }
 
-      let posts = await ctx.db
-        .selectFrom('post')
-        .selectAll()
-        .where('uri', 'in', postUris)
-        .orderBy('indexed_at', 'desc')
-        .orderBy('cid', 'desc')
-        .execute()
-
       res.setHeader('Content-Type', 'text/html');
-      res.send(await hydrateFeedHtml(posts));
+      res.send(await hydrateFeedHtml(ctx.db, postUris));
 
     } catch (err) {
       console.log(`Error in showFeed`, err)
@@ -159,20 +147,28 @@ const makeRouter = (ctx: AppContext) => {
   return router
 }
 
-  const hydrateFeedHtml = async (posts: Post[]): Promise<string> => {
+  const hydrateFeedHtml = async (db: Database, postUris: string[]): Promise<string> => {
     const agent = new AtpAgent({
       service: 'https://api.bsky.app'
     })
     let params: GetPostsParams = {
-      uris: posts.slice(0, 25)
-        .map(x => x.uri)
+      uris: postUris.slice(0, 25)
     }
 
-    let followsResponse = await agent.getPosts(params)
+    let followsResponse = postUris.length > 0 ? (await agent.getPosts(params)).data.posts : []
+
+    let storedPosts =
+      postUris.length > 0
+        ? await db
+          .selectFrom('post')
+          .selectAll()
+          .where('uri', 'in', postUris)
+          .execute()
+        : []
 
     // Transform the posts into a readable format
-    const renderedPosts = followsResponse.data.posts.map(x => {
-      let storedPost = posts.find((y) => y.uri === x.uri)!!
+    const renderedPosts = followsResponse.map(x => {
+      let storedPost = storedPosts.find((y) => y.uri === x.uri)!!
 
       return {
         uri: x.uri,
@@ -185,9 +181,7 @@ const makeRouter = (ctx: AppContext) => {
         likeCount: x.likeCount,
         replyCount: x.replyCount,
         repostCount: x.repostCount,
-        storedLikeCount: storedPost.num_likes,
-        storedReplyCount: storedPost.num_replies,
-        storedRepostCount: storedPost.num_reposts
+        engagement_count: storedPost?.engagement_count,
       }
     })
 
@@ -250,9 +244,7 @@ const makeRouter = (ctx: AppContext) => {
                   💬 ${post.replyCount || 0} &nbsp;
                   (Bluesky)
                 </div class="post-stats">
-                  ❤️ ${post.storedLikeCount || 0} &nbsp;
-                  🔄 ${post.storedRepostCount || 0} &nbsp;
-                  💬 ${post.storedReplyCount || 0} &nbsp;
+                  ✨ ${post.engagement_count || 0} &nbsp;
                   (Feed storage)
                 </div>
               </div>

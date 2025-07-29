@@ -5,6 +5,7 @@ import type {
   NodeSavedStateStore,
 } from '@atproto/oauth-client-node'
 import { Database } from '../../db/database'
+import { sql } from 'kysely'
 
 export class StateStore implements NodeSavedStateStore {
   constructor(private db: Database) {}
@@ -18,7 +19,9 @@ export class StateStore implements NodeSavedStateStore {
     await this.db
       .insertInto('auth_state')
       .values({ key, state })
-      .onConflict((oc) => oc.doUpdateSet({ state }))
+      .onDuplicateKeyUpdate({
+        state: state
+      })
       .execute()
   }
   async del(key: string) {
@@ -38,7 +41,9 @@ export class SessionStore implements NodeSavedSessionStore {
     await this.db
       .insertInto('auth_session')
       .values({ key, session })
-      .onConflict((oc) => oc.doUpdateSet({ session }))
+      .onDuplicateKeyUpdate({
+        session: session
+      })
       .execute()
   }
   async del(key: string) {

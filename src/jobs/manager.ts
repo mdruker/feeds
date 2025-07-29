@@ -1,7 +1,6 @@
 import { Database } from '../db/database'
 import { Insertable, Selectable } from 'kysely'
 import { Job } from '../db/schema'
-import { run } from 'node:test'
 
 const MAX_HANDLE_ATTEMPTS = 10
 const SECONDS_BACKOFF_AFTER_FAILURE = [5, 10, 30, 60, 120, 120, 120, 120, 120, 120]
@@ -11,12 +10,13 @@ const HOURS_TO_KEEP_COMPLETED_JOBS = 48
 export class JobManager {
   constructor(private db: Database) {}
 
-  async createJob(type: string, payload: any) {
-    let now = new Date().toISOString()
+  async createJob(type: string, payload: any, priority: number = 0) {
+    let now = new Date()
     const insertData: Insertable<Job> = {
       type,
       payload: JSON.stringify(payload),
       status: 'pending',
+      priority,
       owner_pid: null,
       created_at: now,
       updated_at: now,
@@ -27,10 +27,9 @@ export class JobManager {
     const result = await this.db
       .insertInto('job')
       .values(insertData)
-      .returning('id')
       .executeTakeFirst()
 
-    return result?.id
+    return result.insertId ? Number(result.insertId) : undefined
   }
 
   async claimNextJob(processId: string, jobTypes: string[]): Promise<Selectable<Job> | null> {
@@ -41,8 +40,9 @@ export class JobManager {
         .where('status', '=', 'pending')
         .where('type', 'in', jobTypes)
         .where((eb) =>
-          eb('run_after', 'is', null).or('run_after', '<', new Date().toISOString())
+          eb('run_after', 'is', null).or('run_after', '<', new Date())
         )
+        .orderBy('priority', 'desc')
         .orderBy('created_at', 'asc')
         .limit(1)
         .selectAll()
@@ -56,7 +56,7 @@ export class JobManager {
         .set({
           status: 'running',
           owner_pid: processId,
-          updated_at: new Date().toISOString(),
+          updated_at: new Date(),
         })
         .execute()
 
@@ -67,7 +67,7 @@ export class JobManager {
   async completeJob(job: Selectable<Job>, error?: string) {
     let status = job.status
     let failureCount = job.failure_count
-    let runAfter: string | null = null
+    let runAfter: Date | null = null
     if (!error) {
       status = 'completed'
     } else {
@@ -80,21 +80,21 @@ export class JobManager {
         let date = new Date()
         let backoffSeconds = SECONDS_BACKOFF_AFTER_FAILURE.at(failureCount) || 120
         date.setSeconds(date.getSeconds() + backoffSeconds)
-        runAfter = date.toISOString()
+        runAfter = date
       }
     }
 
     await this.db
       .updateTable('job')
       .where('id', '=', job.id)
-      .set((eb) => ({
+      .set({
         status: status,
         error: error || null,
-        updated_at: new Date().toISOString(),
+        updated_at: new Date(),
         owner_pid: null,
         failure_count: failureCount,
         run_after: runAfter
-      }))
+      })
       .execute()
   }
 
@@ -105,11 +105,11 @@ export class JobManager {
     await this.db
       .updateTable('job')
       .where('status', '=', 'running')
-      .where('updated_at', '<', cutOffDate.toISOString())
+      .where('updated_at', '<', cutOffDate)
       .set({
         status: 'pending',
         owner_pid: null,
-        updated_at: now.toISOString(),
+        updated_at: now,
       })
       .execute()
   }
@@ -121,7 +121,7 @@ export class JobManager {
     await this.db
       .deleteFrom('job')
       .where('status', 'in', ['completed', 'failed'])
-      .where('updated_at', '<', cutOffDate.toISOString())
+      .where('updated_at', '<', cutOffDate)
       .execute()
   }
 }

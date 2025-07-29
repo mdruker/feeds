@@ -6,6 +6,7 @@ import express from 'express'
 import { getIronSession } from 'iron-session'
 import { AppContext } from '../config'
 import { CatchupSettings, getSettingsWithDefaults, updateSettings } from '../algos/catchup-common'
+import { hasAdminPermission } from './utils'
 
 type Session = { did: string }
 
@@ -88,6 +89,32 @@ export const webRouter = (ctx: AppContext) => {
     }
 
     await updateSettings(ctx, agent.did!!, settings)
+    return res.json({ success: true })
+  }))
+
+  router.post('/jobs/populate-actor/', handler(async (req, res) => {
+    const agent = await getSessionAgent(req, res, ctx)
+    if (!agent) {
+      return res.status(401).json({ error: 'Not logged in' })
+    }
+
+    if (!(await hasAdminPermission(req, res, ctx))) {
+      return res.status(403).json({ error: 'Need admin permission' })
+    }
+
+    let dids: string[]
+    try {
+      dids = req.body.dids
+    } catch (err) {
+      return res.status(400).json({ error: 'Invalid input for dids parameter' })
+    }
+
+    console.log(`Adding ${dids.length} populate-actor jobs`)
+
+    for (const did of dids) {
+      await ctx.jobManager.createJob('populate-actor', { 'did': did })
+    }
+
     return res.json({ success: true })
   }))
 

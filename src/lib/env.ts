@@ -1,5 +1,6 @@
 export enum Env {
   development = "development",
+  staging = "staging",
   production = "production",
 }
 
@@ -12,7 +13,7 @@ export function isProduction(): boolean {
 }
 
 export function debugLog(text: string) {
-  if (isDevelopment()) {
+  if (!isProduction()) {
     console.log(text)
   }
 }

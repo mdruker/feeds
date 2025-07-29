@@ -1,9 +1,15 @@
 import { Database } from '../db/database'
 import { DidResolver } from '@atproto/identity'
 import { Profile } from '../db/schema'
+import { populateActor } from '../util/actors'
+import { JobManager } from './manager'
+import { sql } from 'kysely'
 
 export interface JobTypes {
   'fetch-follow-profiles': {
+    did: string
+  }
+  'populate-actor': {
     did: string
   }
 }
@@ -11,6 +17,7 @@ export interface JobTypes {
 export interface JobContext {
   db: Database
   didResolver: DidResolver
+  jobManager: JobManager
 }
 
 // Type helper for job handlers with context
@@ -53,6 +60,7 @@ jobHandlers.register({
     const follows = await ctx.db
       .selectFrom('follow')
       .select('target_did')
+      .distinct()
       .leftJoin('profile', 'profile.did', 'follow.target_did')
       .where('source_did', '=', payload.did)
       .where('profile.handle', 'is', null)
@@ -60,7 +68,9 @@ jobHandlers.register({
 
     let dids = follows.map(follow => follow.target_did)
     // Look up the acting account too
-    dids.push(payload.did)
+    if (!dids.includes(payload.did)) {
+      dids.push(payload.did)
+    }
 
     const atPrefix = 'at://'
     const didWebPrefix = 'did:web:'
@@ -92,7 +102,7 @@ jobHandlers.register({
       newProfiles.push({
         'did': did,
         'handle': handle,
-        'updated_at': new Date().toISOString()
+        'updated_at': new Date()
       })
 
       if (newProfiles.length % 1000 === 0) {
@@ -111,13 +121,18 @@ jobHandlers.register({
       await ctx.db
         .insertInto('profile')
         .values(profiles)
-        .onConflict((oc) => oc
-          .column('did')
-          .doUpdateSet({
-            handle: (eb) => eb.ref('excluded.handle'),
-            updated_at: (eb) => eb.ref('excluded.updated_at'),
-          }))
+        .onDuplicateKeyUpdate({
+          handle: sql`VALUES(handle)`,
+          updated_at: sql`VALUES(updated_at)`
+        })
         .execute()
     }
+  }
+})
+
+jobHandlers.register({
+  type: 'populate-actor',
+  handler: async (payload, ctx) => {
+    await populateActor(ctx.db, ctx.didResolver, ctx.jobManager, payload.did)
   }
 })

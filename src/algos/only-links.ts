@@ -18,7 +18,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
     console.log(`Did not find ${requesterDid} in the db, starting to populate`)
 
     // This might take a while, but usually seems OK to wait for it to finish.
-    await populateActor(ctx, requesterDid)
+    await populateActor(ctx.db, ctx.didResolver, ctx.jobManager, requesterDid)
   }
 
   // Fetch all of actor's follows from the db
@@ -81,8 +81,8 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
     let cursorCid: string = strings.length == 2 ? strings[1] : ""
 
     posts = posts.filter((x) =>
-      x.indexed_at < timeStr ||
-      x.indexed_at === timeStr && x.cid < cursorCid
+      new Date(x.indexed_at).toISOString() < timeStr ||
+      new Date(x.indexed_at).toISOString() === timeStr && x.cid < cursorCid
     )
   }
 

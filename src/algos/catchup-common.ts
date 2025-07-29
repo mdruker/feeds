@@ -1,21 +1,13 @@
 import { AppContext } from '../config'
 import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { debugLog } from '../lib/env'
-import { AtUri } from '@atproto/syntax'
 import * as AppBskyFeedDefs from '../lexicon/types/app/bsky/feed/defs'
-import { SkeletonReasonRepost } from '../lexicon/types/app/bsky/feed/defs'
+import { SelectQueryBuilder, sql } from 'kysely'
 
 export type CatchupSettings = {
   include_replies: boolean | undefined
   posts_per_account: number | undefined
   repost_percent: number | undefined
-}
-
-type FeedEntry = {
-  uri: string
-  cid: string
-  indexed_at: string
-  repost_uri: string | undefined
 }
 
 const DEFAULT_INCLUDE_REPLIES = false
@@ -51,9 +43,12 @@ export async function updateSettings(ctx: AppContext, actorDid: string, settings
       actor_did: actorDid,
       shortname: 'catchup',
       settings: settingsJson,
-      updated_at: new Date().toISOString(),
+      updated_at: new Date(),
     })
-    .onConflict((oc) => oc.doUpdateSet({ settings: settingsJson, updated_at: new Date().toISOString() }))
+    .onDuplicateKeyUpdate({
+      settings: sql`VALUES(settings)`,
+      updated_at: sql`VALUES(updated_at)`
+    })
     .execute()
 }
 
@@ -63,97 +58,64 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   const settings = await getSettingsWithDefaults(ctx, requesterDid)
   debugLog(`Got settings at ${Math.round(performance.now() - t0)}`)
 
-  // Fetch all of actor's follows from the db
-  let follows = await ctx.db
-    .selectFrom('follow')
-    .selectAll()
-    .where('source_did', '=', requesterDid)
-    .execute()
-  debugLog(`Got follows at ${Math.round(performance.now() - t0)}`)
+  let cursorDate: Date
+  let cursorCid: string
 
-  if (follows.length == 0) {
-    return {
-      feed: [],
-    }
-  }
-
-  // Posts and replies to people you follow, all the way to the cut-off so we're calculating
-  // what needs to be seen more-or-less consistently.
-  let res = await ctx.db
-    .selectFrom('post')
-    .innerJoin(
-      'follow',
-      (join) => join
-        .onRef('follow.target_did', '=', 'post.author_did')
-        .on('follow.source_did', '=', requesterDid),
-    )
-    .select(['post.uri', 'post.cid', 'post.indexed_at', 'post.author_did', 'post.num_likes', 'post.num_reposts', 'post.num_replies', 'post.reply_parent_uri', 'post.reply_root_uri'])
-    .execute()
-
-  let cutOffDate = new Date()
-  cutOffDate.setHours(cutOffDate.getHours() - 24)
-
-  // We need some time to pass before the engagement counts cure up
-  let oldEnoughDate = new Date()
-  oldEnoughDate.setMinutes(oldEnoughDate.getMinutes() - 15)
-
-  // It's apparently faster to do this filtering in the application layer.
-  res = res.filter((x) => {
-    return x.indexed_at > cutOffDate.toISOString() && x.indexed_at < oldEnoughDate.toISOString()
-  })
-
-  if (settings.include_replies) {
-    let followedDids = follows.map(follow => follow.target_did)
-
-    // Only consider replies where the original thread root is followed.
-    res = res.filter((x) =>
-      !x.reply_root_uri || followedDids.includes(new AtUri(x.reply_root_uri).host))
+  if (params.cursor) {
+    let strings = params.cursor.split(':')
+    cursorDate = new Date(parseInt(strings[0], 10))
+    cursorCid = strings.length == 2 ? strings[1] : ''
   } else {
-    // Exclude all replies
-    res = res.filter((x) => !x.reply_parent_uri)
+    cursorDate = new Date()
+    cursorDate.setMinutes(cursorDate.getMinutes() + 10)
+    cursorCid = "zzzzzzzzzzzzzz" // They all start with a metadata prefix
   }
 
-  debugLog(`Got posts at ${Math.round(performance.now() - t0)}`)
-
-  res = res.sort((a, b) =>
-    b.num_likes + b.num_reposts + b.num_replies - a.num_likes - a.num_reposts - a.num_replies)
-
-  debugLog(`Sorted all posts at ${Math.round(performance.now() - t0)}`)
-
-  let followsMap = new Map(follows.map((x) => [x.target_did, x]))
-
-  let posts: FeedEntry[] = Map.groupBy(res, (item, index) => {
-    return item.author_did
-  }).entries().map((entry) => {
-    let follow = followsMap.get(entry[0])
-    if (!follow) {
-      return []
-    }
-    let postsPerAccount = settings.posts_per_account || DEFAULT_POSTS_PER_ACCOUNT
-    return entry[1]
-      .slice(0, Math.max(0, follow.actor_score + postsPerAccount))
-      .map(x => {
-        return {
-          uri: x.uri,
-          indexed_at: x.indexed_at,
-          cid: x.cid,
-          repost_uri: undefined
-        }
-      })
-  }).toArray().flat()
-
-  debugLog(`Filtered top posts at ${Math.round(performance.now() - t0)}`)
-
-  let postUris = new Set(posts.map((post) => post.uri))
-
+  let postsPerAccount = settings.posts_per_account || DEFAULT_POSTS_PER_ACCOUNT
   let repostPercent = settings.repost_percent || DEFAULT_REPOST_PERCENT
-  let maxReposts = Math.round(posts.length * repostPercent / (100 - repostPercent))
 
-  // Reposts by people you follow
-  let repostRes =
-    maxReposts === 0
-      ? []
-      : await ctx.db
+  let postResults = await ctx.db
+    .with('rankedPosts', (db) => {
+        let query: SelectQueryBuilder<any, any, any> = db.selectFrom('post')
+          .innerJoin(
+            'follow as author_follow',
+            (join) => join
+              .onRef('author_follow.target_did', '=', 'post.author_did')
+              .on('author_follow.source_did', '=', requesterDid),
+          )
+
+        if (settings.include_replies) {
+          query = query
+            .leftJoin(
+              'follow as root_follow',
+              (join) => join
+                .onRef('root_follow.target_did', '=', 'post.reply_root_did')
+                .on('root_follow.source_did', '=', requesterDid),
+            )
+            .where((eb) =>
+              eb('reply_parent_uri', 'is', null).or('root_follow.target_did', 'is not', null)
+          )
+
+        } else {
+          query = query.where('reply_parent_uri', 'is', null)
+        }
+
+        return query
+          .select(['post.uri', 'post.cid', 'post.indexed_at', 'post.author_did', 'post.engagement_count', 'author_follow.actor_score'])
+          .select(
+            sql<number>`row_number
+            () over (partition by post.author_did order by post.engagement_count desc)`
+              .as('rn'))
+      },
+    )
+    .with('filteredPosts', (db => {
+      return db
+        .selectFrom('rankedPosts')
+        .select(['uri', 'cid', 'indexed_at', sql<string>`null`.as('post_uri')])
+        .where('rn', '<=', sql<number>`${postsPerAccount} + actor_score`)
+    }))
+    .with('repostDetails', (db) => {
+      return db
         .selectFrom('repost')
         .innerJoin(
           'follow',
@@ -161,100 +123,80 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
             .onRef('follow.target_did', '=', 'repost.author_did')
             .on('follow.source_did', '=', requesterDid),
         )
-        .select(['repost.uri', 'repost.cid', 'repost.indexed_at', 'repost.author_did', 'repost.post_uri'])
-        .execute()
-
-  debugLog(`Queried reposts at ${Math.round(performance.now() - t0)}`)
-
-  repostRes = repostRes
-    // It's apparently faster to do this filtering in the application layer.
-    .filter((x) => {
-      return x.indexed_at > cutOffDate.toISOString() && x.indexed_at < oldEnoughDate.toISOString()
+        .select([
+          'repost.uri as repost_uri',
+          'repost.cid',
+          'repost.post_uri',
+          'repost.indexed_at',
+          sql<number>`count(*) over (partition by post_uri)`.as('repost_count'),
+          sql<number>`row_number() over (partition by post_uri order by repost.indexed_at asc)`.as('repost_rn')
+        ])
     })
-    // Don't show reposts of posts we'd already show
-    .filter((x) => !postUris.has(x.post_uri))
-
-  let reposts = Map.groupBy(repostRes, (item, index) => {
-    return item.post_uri
-  }).entries().toArray()
-
-  reposts.sort((a, b) => {
-    if (a[1].length != b[1].length) {
-      return b[1].length - a[1].length
-    }
-    // This isn't meaningful, but the sort should be predictable.
-    return b[0].localeCompare(a[0])
-  })
-
-  debugLog(`Sorted reposts at ${Math.round(performance.now() - t0)}`)
-
-  debugLog(`Filtering ${reposts.length} reposts with max ${maxReposts}`)
-
-  reposts = reposts.slice(0, maxReposts)
-
-  let repostArray: FeedEntry[] = reposts.map((entry) => {
-    // TODO: this could be more efficient, we just need the earliest repost, not a whole sort
-    entry[1].sort((a, b) => {
-      let indexedAtDiff = new Date(a.indexed_at).getTime() - new Date(b.indexed_at).getTime()
-      if (indexedAtDiff != 0) {
-        return indexedAtDiff
-      }
-      return a.cid.localeCompare(b.cid)
-    })
-    let repost = entry[1].at(0)!
-    return {
-      uri: repost.post_uri,
-      cid: repost.cid,
-      indexed_at: repost.indexed_at,
-      repost_uri: repost.uri
-    }
-  })
-
-  debugLog(`Processed reposts at ${Math.round(performance.now() - t0)}`)
-
-  posts.push(...repostArray)
-
-  // Now sort again in descending order by date and CID as in the original sort
-  posts.sort((a, b) => {
-    let indexedAtDiff = new Date(b.indexed_at).getTime() - new Date(a.indexed_at).getTime()
-    if (indexedAtDiff != 0) {
-      return indexedAtDiff
-    }
-    return b.cid.localeCompare(a.cid)
-  })
-
-  debugLog(`Sorted posts at ${Math.round(performance.now() - t0)}`)
-
-  // Apply the cursor only after so we're relatively consistently calculating the posts needed.
-  if (params.cursor) {
-    let strings = params.cursor.split(':')
-    const timeStr = new Date(parseInt(strings[0], 10)).toISOString()
-
-    let cursorCid: string = strings.length == 2 ? strings[1] : ''
-
-    posts = posts.filter((x) =>
-      x.indexed_at < timeStr ||
-      x.indexed_at === timeStr && x.cid < cursorCid,
-    )
-  }
-
-  debugLog(`Filtered by cursor at ${Math.round(performance.now() - t0)}`)
-
-  posts = posts.slice(0, params.limit)
+    .with('postCount', (db => {
+      return db
+        .selectFrom('filteredPosts')
+        .select(sql<number>`count(*)`.as('total_posts'))
+    }))
+    .with('rankedReposts', (db => {
+      return db
+        .selectFrom('repostDetails')
+        .innerJoin('postCount', (join) => join.on(sql`1`, '=', sql`1`))
+        .select([
+          'repost_uri as uri',
+          'cid',
+          'indexed_at',
+          'post_uri',
+          sql<number>`row_number() over (order by repost_count desc)`.as('repost_rank'),
+          'total_posts'
+        ])
+        .where('repost_rn', '=', 1)
+        .where((eb) => eb.not(eb.exists(
+          eb.selectFrom('rankedPosts')
+            .select('uri')
+            .whereRef('rankedPosts.uri', '=', 'repostDetails.post_uri')
+        )))
+    }))
+    .with('limitedReposts', (db => {
+      return db
+        .selectFrom('rankedReposts')
+        .select(['uri', 'cid', 'indexed_at', 'post_uri'])
+        .where((eb) => eb('repost_rank', '<=',
+          sql<number>`round(total_posts * ${repostPercent} / (100 - ${repostPercent}))`
+        ))
+    }))
+    .with('combined', (db => {
+      return db.selectFrom('filteredPosts')
+        .select(['uri', 'cid', 'indexed_at', sql<string>`null`.as('post_uri')])
+        .unionAll(
+          db.selectFrom('limitedReposts')
+            .select(['uri', 'cid', 'indexed_at', 'post_uri'])
+        )
+    }))
+    .selectFrom('combined')
+    .selectAll()
+    .where(({ eb, or, and }) => or([
+        eb('indexed_at', '<', cursorDate),
+        and([eb('indexed_at', '=', cursorDate), eb('cid', '<', cursorCid)])
+      ]))
+    .orderBy(['indexed_at desc', 'cid desc'])
+    .limit(params.limit)
+    .execute()
 
   let cursor: string | undefined
-  const last = posts.at(-1)
+  const last = postResults.at(-1)
   if (last) {
     cursor = new Date(last.indexed_at).getTime().toString(10) + ':' + last.cid
   }
 
-  const feed: AppBskyFeedDefs.SkeletonFeedPost[] = posts.map((row) => {
-    if (row.repost_uri) {
+  let numReposts = 0
+  const feed: AppBskyFeedDefs.SkeletonFeedPost[] = postResults.map((row) => {
+    if (row.post_uri) {
+      numReposts++
       return {
-        post: row.uri,
+        post: row.post_uri,
         reason: {
           $type: 'app.bsky.feed.defs#skeletonReasonRepost',
-          repost: row.repost_uri
+          repost: row.uri
         }
       }
     } else {
@@ -264,7 +206,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     }
   })
 
-  debugLog(`Generated feed at ${Math.round(performance.now() - t0)}`)
+  debugLog(`Generated feed with ${feed.length} entries (${numReposts} reposts) at ${Math.round(performance.now() - t0)}, postsPerAccount: ${postsPerAccount}, repostPercent: ${repostPercent}`)
 
   return {
     cursor,

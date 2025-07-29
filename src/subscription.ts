@@ -3,10 +3,23 @@ import { isLink } from './lexicon/types/app/bsky/richtext/facet'
 import { isMain as isExternalEmbed } from './lexicon/types/app/bsky/embed/external'
 import { Post, Repost } from './db/schema'
 import { PostProperties } from './util/properties'
+import { AtUri } from '@atproto/syntax'
+import { debugLog } from './lib/env'
+import { sql } from 'kysely'
+
+const ARCHIVED_POST_CUTOFF_HOURS = 24*7
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleOps(ops: OperationsByType) {
-    let batchProcessDate = new Date().toISOString()
+    const batchProcessDate = new Date()
+    await Promise.all([
+      this.handleMain(ops, batchProcessDate),
+      this.handleReposts(ops, batchProcessDate)
+    ])
+  }
+
+  async handleMain(ops: OperationsByType, batchProcessDate: Date) {
+    let t0 = performance.now()
 
     let identityUpdateDids = ops.identityEvents
       .filter(x => x.handle)
@@ -21,8 +34,17 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
 
       let knownProfileDids = res.map(x => x.did)
 
+      const profileUpdatedDids = new Set<string>()
       const profileUpdates = ops.identityEvents
         .filter(x => knownProfileDids.includes(x.did))
+        .filter(x => {
+          if (profileUpdatedDids.has(x.did)) {
+            return false
+          }
+          profileUpdatedDids.add(x.did)
+          return true
+        })
+
         .map(update => ({
           did: update.did,
           handle: update.handle,
@@ -33,12 +55,10 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         await this.db
           .insertInto('profile')
           .values(profileUpdates)
-          .onConflict((oc) => oc
-            .column('did')
-            .doUpdateSet({
-              handle: (eb) => eb.ref('excluded.handle'),
-              updated_at: (eb) => eb.ref('excluded.updated_at')
-            }))
+          .onDuplicateKeyUpdate({
+            handle: sql`VALUES(handle)`,
+            updated_at: sql`VALUES(updated_at)`
+          })
           .execute()
       }
     }
@@ -58,7 +78,6 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           source_did: followCreate.author,
           target_did: followCreate.record.subject,
           created_at: batchProcessDate,
-          is_mutual: 0,
           actor_score: 0
         }
       })
@@ -66,7 +85,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       await this.db
         .insertInto('follow')
         .values(followsToCreate)
-        .onConflict((oc) => oc.doNothing())
+        .ignore()
         .execute()
     }
 
@@ -93,13 +112,24 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
 
     // We don't want backdated posts in our feeds.
     let archivedPostCutoff = new Date()
-    archivedPostCutoff.setHours(archivedPostCutoff.getHours() - 24*7)
+    archivedPostCutoff.setHours(archivedPostCutoff.getHours() - ARCHIVED_POST_CUTOFF_HOURS)
 
     // This is where we'd filter by known follows, if we wanted to.
-    let postsToUpdateOrCreate = ops.posts.creates
+
+    let postUrisToCreateOrUpdate: Set<string> = new Set()
+
+    let postsToCreate = ops.posts.creates
       .filter(create => new Date(create.record.createdAt) > archivedPostCutoff)
+      .filter(create => {
+        if (postUrisToCreateOrUpdate.has(create.uri)) {
+          console.log('double create uri')
+          return false
+        } else {
+          return true
+        }
+      })
       .map((create) => {
-        let createdAt = new Date(create.record.createdAt).toISOString()
+        let createdAt = new Date(create.record.createdAt)
         if (batchProcessDate < createdAt) {
           // Future-dated posts shouldn't go to the top of the feed.
           createdAt = batchProcessDate
@@ -120,70 +150,67 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
           cid: create.cid,
           author_did: create.author,
           reply_parent_uri: create.record.reply?.parent?.uri,
+          reply_parent_did: hostnameFromUri(create.record.reply?.parent?.uri),
           reply_root_uri: create.record.reply?.root?.uri,
+          reply_root_did: hostnameFromUri(create.record.reply?.root?.uri),
           indexed_at: createdAt,
-          num_likes: 0,
-          num_replies: 0,
-          num_reposts: 0,
+          engagement_count: 0,
           properties: JSON.stringify(properties),
         }
+        postUrisToCreateOrUpdate.add(create.uri)
+
         return newVar
       })
 
+    if (postsToCreate.length > 0) {
+      await this.db
+        .insertInto('post')
+        .values(postsToCreate)
+        .ignore()
+        .execute()
+    }
+
+    debugLog(`Inserted new posts in db at ${Math.round(performance.now() - t0)}`)
+
     let postsToUpdateReplyCounts = ops.posts.creates
-      .map((x) => x.record.reply?.parent?.uri)
+      .map((x) => x.record.reply?.parent.uri)
       .filter((x) => x != null)
     let postsToLike = ops.likes.creates
       .map((x) => x.record.subject.uri)
     let postsToRepost = ops.reposts.creates
       .map((x) => x.record.subject.uri)
 
+    // Calculate engagement count increments
     let postsToUpdateEngagement = postsToUpdateReplyCounts.concat(postsToLike).concat(postsToRepost)
 
     if (postsToUpdateEngagement.length > 0) {
-      let posts = await this.db
-        .selectFrom('post')
-        .selectAll()
-        .where('uri', 'in', postsToUpdateEngagement)
-        .execute()
+      // Count how many times each post URI appears in engagement events
+      let engagementCounts = new Map<string, number>()
 
-      postsToUpdateOrCreate = postsToUpdateOrCreate.concat(posts)
-    }
+      for (let postUri of postsToUpdateEngagement) {
+        engagementCounts.set(postUri, (engagementCounts.get(postUri) || 0) + 1)
+      }
 
-    for (let postUri of postsToLike) {
-      let i = postsToUpdateOrCreate.findIndex(x => x.uri === postUri)
-      if (i >= 0) {
-        postsToUpdateOrCreate[i].num_likes = postsToUpdateOrCreate[i].num_likes + 1
+      const engagementsByCount = engagementCounts.entries().reduce((acc, item) => {
+        if (!acc.has(item[1])) {
+          acc.set(item[1], []);
+        }
+        acc.get(item[1])!.push(item[0]);
+        return acc;
+      }, new Map<number, string[]>());
+
+      for (let [count, uris] of engagementsByCount.entries()) {
+        await this.db
+          .updateTable('post')
+          .set({
+            engagement_count: sql`engagement_count + ${count}`,
+          })
+          .where('uri', 'in', uris)
+          .execute()
       }
     }
 
-    for (let postUri of postsToUpdateReplyCounts) {
-      let i = postsToUpdateOrCreate.findIndex(x => x.uri === postUri)
-      if (i >= 0) {
-        postsToUpdateOrCreate[i].num_replies = postsToUpdateOrCreate[i].num_replies + 1
-      }
-    }
-
-    for (let postUri of postsToRepost) {
-      let i = postsToUpdateOrCreate.findIndex(x => x.uri === postUri)
-      if (i >= 0) {
-        postsToUpdateOrCreate[i].num_reposts = postsToUpdateOrCreate[i].num_reposts + 1
-      }
-    }
-
-    if (postsToUpdateOrCreate.length > 0) {
-      await this.db
-        .insertInto('post')
-        .values(postsToUpdateOrCreate)
-        .onConflict((oc) => oc
-          .column('uri')
-          .doUpdateSet((eb) => ({
-            num_likes: eb.ref('excluded.num_likes'),
-            num_reposts: eb.ref('excluded.num_reposts'),
-            num_replies: eb.ref('excluded.num_replies'),
-          })))
-        .execute()
-    }
+    debugLog(`Updated engagement counts in db at ${Math.round(performance.now() - t0)}`)
 
     let postsToDelete = ops.posts.deletes
       .map((x) => x.uri)
@@ -194,23 +221,27 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
 
-    ops.reposts.creates
-      .map((x) => {
-        if (ops.reposts.creates.length % 500 === 0) {
-          console.log('here')
-        }
-      })
+    console.log(`Processed ${ops.posts.creates.length} posts created, ${postsToDelete.length} post deletes, etc. in ${Math.round(performance.now() - t0)} ms`)
+  }
 
-    let repostsToCreate = ops.reposts.creates
+  async handleReposts(ops: OperationsByType, batchProcessDate: Date) {
+    let t0 = performance.now()
+
+    // We don't want backdated posts in our feeds.
+    let archivedPostCutoff = new Date()
+    archivedPostCutoff.setHours(archivedPostCutoff.getHours() - ARCHIVED_POST_CUTOFF_HOURS)
+
+    // Handle repost creates
+    const repostsToCreate = ops.reposts.creates
       .filter(create => new Date(create.record.createdAt) > archivedPostCutoff)
       .map((create) => {
-        let createdAt = new Date(create.record.createdAt).toISOString()
+        let createdAt = new Date(create.record.createdAt)
         if (batchProcessDate < createdAt) {
           // Future-dated records shouldn't go to the top of the feed.
           createdAt = batchProcessDate
         }
 
-        let newVar: Repost = {
+        const newVar: Repost = {
           uri: create.uri,
           cid: create.cid,
           author_did: create.author,
@@ -219,16 +250,17 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         }
         return newVar
       })
+
     if (repostsToCreate.length > 0) {
       await this.db
         .insertInto('repost')
         .values(repostsToCreate)
-        .onConflict((oc) => oc.doNothing())
+        .ignore()
         .execute()
     }
 
-    let repostsToDelete = ops.reposts.deletes
-      .map((x) => x.uri)
+    // Handle repost deletes
+    const repostsToDelete = ops.reposts.deletes.map((x) => x.uri)
     if (repostsToDelete.length > 0) {
       await this.db
         .deleteFrom('repost')
@@ -236,22 +268,16 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
 
-    console.log(`${ops.posts.creates.length} posts created, ${postsToDelete.length} post deletes, ${ops.reposts.creates.length} reposts created, ${followsToCreate.length} follows added, ${followsDeleted} follows deleted, ${ops.follows.creates.length} total new follows`)
-
-    // Not part of the firehose, but we want to delete stuff that's too old.
-    let cutOffDate = new Date()
-    cutOffDate.setHours(cutOffDate.getHours() - 24)
-
-    await this.db
-      .deleteFrom('post')
-      .where('indexed_at', '<', cutOffDate.toISOString())
-      .limit(5000)
-      .execute()
-
-    await this.db
-      .deleteFrom('repost')
-      .where('indexed_at', '<', cutOffDate.toISOString())
-      .limit(5000)
-      .execute()
+    debugLog(`Processed ${repostsToCreate.length} repost creates, ${repostsToDelete.length} repost deletes in ${Math.round(performance.now() - t0)}`)
   }
+}
+
+function hostnameFromUri(uri: string | undefined): string | undefined {
+  if (!uri) return undefined
+
+  try {
+    return new AtUri(uri).host
+  } catch (err) {}
+
+  return undefined
 }

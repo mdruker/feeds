@@ -1,13 +1,17 @@
 import { ids } from '../lexicon/lexicons'
 import { Database } from '../db/database'
 import { Jetstream, CommitType, CommitEvent, IdentityEvent } from '@skyware/jetstream'
-import WebSocket from 'ws'
+import WebSocket, { CLOSED, OPEN } from 'ws'
 import { Semaphore } from 'async-mutex'
 import Queue from 'yocto-queue'
+import { sql } from 'kysely'
 
 const semaphore = new Semaphore(128)
 
 const JETSTREAM_ENDPOINT = 'wss://jetstream2.us-east.bsky.network/subscribe'
+
+const BATCH_SIZE = 10000
+const MAX_WAIT_MS = 10000
 
 export abstract class FirehoseSubscriptionBase {
   public jetstream: Jetstream
@@ -39,12 +43,16 @@ export abstract class FirehoseSubscriptionBase {
     })
 
     this.jetstream.on('commit', (event) => {
-
       eventQueue.enqueue({
         timeUs: event.time_us,
         identityEvent: undefined,
         commitEvent: event
       })
+
+      if (eventQueue.size > BATCH_SIZE * 3 && this.jetstream.ws?.readyState == OPEN) {
+        console.log('Too many events in queue, closing jetstream')
+        this.jetstream.close()
+      }
     })
 
     this.jetstream.on('identity', (event) => {
@@ -53,6 +61,11 @@ export abstract class FirehoseSubscriptionBase {
         identityEvent: event,
         commitEvent: undefined
       })
+
+      if (eventQueue.size > BATCH_SIZE * 3 && this.jetstream.ws?.readyState == OPEN) {
+        console.log('Too many events in queue, closing jetstream')
+        this.jetstream.close()
+      }
     })
 
     const processQueue = async () => {
@@ -83,7 +96,7 @@ export abstract class FirehoseSubscriptionBase {
           console.log(`Lost a race to process a batch`)
         }
 
-        if (opsByType.opsProcessed >= 3000) {
+        if (opsByType.opsProcessed >= BATCH_SIZE || performance.now() - t0 > MAX_WAIT_MS) {
           let t1 = performance.now()
 
           let handledHere = false
@@ -104,6 +117,10 @@ export abstract class FirehoseSubscriptionBase {
             let t2 = performance.now()
             await this.updateDbCursorAndCheckForRestart(lastSuccessfulCursor!!)
             console.log(`Processed batch in ${Math.round(t1 - t0)} ms (fetching) and ${Math.round(t2 - t1)} ms (handling), updated cursor to ${lastSuccessfulCursor}`)
+
+            if (this.jetstream.ws?.readyState === CLOSED && eventQueue.size < BATCH_SIZE) {
+              this.jetstream.start()
+            }
           } else {
             console.log(`Lost a race to handle a batch`)
           }
@@ -147,7 +164,9 @@ export abstract class FirehoseSubscriptionBase {
     await this.db
       .insertInto('sub_state')
       .values({ service: JETSTREAM_ENDPOINT, cursor: cursor})
-      .onConflict((oc) => oc.doUpdateSet( {cursor}))
+      .onDuplicateKeyUpdate({
+        cursor: cursor
+      })
       .execute()
   }
 
