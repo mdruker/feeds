@@ -114,6 +114,7 @@ migrations['001'] = {
       .addColumn('type', 'varchar(255)', (col) => col.notNull())
       .addColumn('payload', 'varchar(1023)', (col) => col.notNull())
       .addColumn('status', 'varchar(255)', (col) => col.notNull())
+      .addColumn('priority', 'integer', (col) => col.notNull().defaultTo(0))
       .addColumn('owner_pid', 'varchar(255)')
       .addColumn('run_after', 'datetime')
       .addColumn('created_at', 'datetime', (col) => col.notNull())
@@ -135,11 +136,12 @@ migrations['001'] = {
       .column('updated_at')
       .execute()
     await db.schema
-      .createIndex('idx_job_status_type_run_after_created_at')
+      .createIndex('idx_job_status_type_run_after_priority_desc_created_at')
       .on('job')
       .column('status')
       .column('type')
       .column('run_after')
+      .column('priority desc')
       .column('created_at')
       .execute()
 

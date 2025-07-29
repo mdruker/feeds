@@ -22,7 +22,7 @@ export async function populateActor(
   }
 
   if (async) {
-    await jobManager.createJob('populate-actor', { did: requesterDid })
+    await jobManager.createJob('populate-actor', { did: requesterDid }, 10)
     return
   }
   // Using unauthenticated read-only API

@@ -84,6 +84,7 @@ export type Job = {
   type: string  
   payload: string // JSON payload
   status: 'pending' | 'running' | 'completed' | 'failed'
+  priority: number
   owner_pid: string | null
   created_at: Date
   updated_at: Date

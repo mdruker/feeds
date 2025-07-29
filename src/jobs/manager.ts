@@ -1,7 +1,6 @@
 import { Database } from '../db/database'
 import { Insertable, Selectable } from 'kysely'
 import { Job } from '../db/schema'
-import { run } from 'node:test'
 
 const MAX_HANDLE_ATTEMPTS = 10
 const SECONDS_BACKOFF_AFTER_FAILURE = [5, 10, 30, 60, 120, 120, 120, 120, 120, 120]
@@ -11,12 +10,13 @@ const HOURS_TO_KEEP_COMPLETED_JOBS = 48
 export class JobManager {
   constructor(private db: Database) {}
 
-  async createJob(type: string, payload: any) {
+  async createJob(type: string, payload: any, priority: number = 0) {
     let now = new Date()
     const insertData: Insertable<Job> = {
       type,
       payload: JSON.stringify(payload),
       status: 'pending',
+      priority,
       owner_pid: null,
       created_at: now,
       updated_at: now,
@@ -42,6 +42,7 @@ export class JobManager {
         .where((eb) =>
           eb('run_after', 'is', null).or('run_after', '<', new Date())
         )
+        .orderBy('priority', 'desc')
         .orderBy('created_at', 'asc')
         .limit(1)
         .selectAll()

@@ -221,8 +221,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
 
-    console.log(`Processed ${ops.posts.creates.length} posts created, ${postsToDelete.length} post deletes, etc. ${Math.round(performance.now() - t0)}`)
-
+    console.log(`Processed ${ops.posts.creates.length} posts created, ${postsToDelete.length} post deletes, etc. in ${Math.round(performance.now() - t0)} ms`)
   }
 
   async handleReposts(ops: OperationsByType, batchProcessDate: Date) {
