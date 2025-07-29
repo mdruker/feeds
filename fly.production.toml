@@ -16,7 +16,7 @@ ENVIRONMENT = "production"
   destination = '/data'
   auto_extend_size_threshold = 80
   auto_extend_size_increment = '1GB'
-  auto_extend_size_limit = '120GB'
+  auto_extend_size_limit = '10GB'
 
 [http_service]
   internal_port = 3000
@@ -27,6 +27,6 @@ ENVIRONMENT = "production"
   processes = ['app']
 
 [[vm]]
-  memory = '2gb'
-  cpu_kind = 'performance'
-  cpus = 1
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 2
