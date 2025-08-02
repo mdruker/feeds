@@ -82,10 +82,15 @@ export const webRouter = (ctx: AppContext) => {
       return res.status(400).json({ error: 'Invalid value for repost_percent' })
     }
 
+    if (req.body.num_recent_posts < 0 || req.body.num_recent_posts > 1000) {
+      return res.status(400).json({ error: 'Invalid value for num_recent_posts' })
+    }
+
     const settings: CatchupSettings = {
       include_replies: req.body.include_replies,
       posts_per_account: req.body.posts_per_account,
       repost_percent: req.body.repost_percent,
+      num_recent_posts: req.body.num_recent_posts,
     }
 
     await updateSettings(ctx, agent.did!!, settings)

@@ -14,6 +14,7 @@ async function loadUserData() {
     document.getElementById('include_replies_false').checked = !data.settings.include_replies
     document.getElementById('posts_per_account').value = data.settings.posts_per_account
     document.getElementById('repost_percent').value = data.settings.repost_percent
+    document.getElementById('num_recent_posts').value = data.settings.num_recent_posts
 
     showSettingsView()
   } catch (error) {
@@ -86,6 +87,7 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
   const include_replies = formData.get('include_replies') === 'true';
   const posts_per_account = formData.get('posts_per_account')
   const repost_percent = formData.get('repost_percent')
+  const num_recent_posts = formData.get('num_recent_posts')
 
   try {
     await fetch('/api/settings', {
@@ -97,6 +99,7 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
         include_replies: include_replies,
         posts_per_account: posts_per_account,
         repost_percent: repost_percent,
+        num_recent_posts: num_recent_posts,
       })
     })
     showToast('Settings updated', false);

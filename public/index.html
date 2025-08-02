@@ -45,7 +45,7 @@
         <div class="card">
             <form id="settings-form">
                 <fieldset class="settings-group">
-                    <legend>Replies in the feed (experimental)</legend>
+                    <legend>Replies in the feed</legend>
 
                     <div class="radio-option">
                         <input type="radio" id="include_replies_false" name="include_replies" value="false">
@@ -80,6 +80,16 @@
                         <label for="repost_percent">
                             <strong>Repost percent</strong>
                             <span class="description">What percentage of posts shown can be reposts. Currently these are the posts most reposted in the last 24 hours by accounts you follow, and the first of those reposts is what will be shown.</span>
+                        </label>
+                    </div>
+                </fieldset>
+                <fieldset class="settings-group">
+                    <legend>Recent posts (experimental)</legend>
+                    <div class="radio-option">
+                        <input type="number" id="num_recent_posts" name="num_recent_posts" min="0" max="1000">
+                        <label for="num_recent_posts">
+                            <strong>Number of recent posts</strong>
+                            <span class="description">How many of the newest posts to show before switching to the most engaged posts from the past 24 hours.</span>
                         </label>
                     </div>
                 </fieldset>

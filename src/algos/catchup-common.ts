@@ -8,11 +8,13 @@ export type CatchupSettings = {
   include_replies: boolean | undefined
   posts_per_account: number | undefined
   repost_percent: number | undefined
+  num_recent_posts: number | undefined
 }
 
 const DEFAULT_INCLUDE_REPLIES = false
 const DEFAULT_POSTS_PER_ACCOUNT = 2
 const DEFAULT_REPOST_PERCENT = 0
+const DEFAULT_NUM_RECENT_POSTS = 0
 
 export async function getSettingsWithDefaults(ctx: AppContext, requesterDid: string): Promise<CatchupSettings> {
   let settingsResult = await ctx.db
@@ -28,6 +30,7 @@ export async function getSettingsWithDefaults(ctx: AppContext, requesterDid: str
     include_replies: DEFAULT_INCLUDE_REPLIES,
     posts_per_account: DEFAULT_POSTS_PER_ACCOUNT,
     repost_percent: DEFAULT_REPOST_PERCENT,
+    num_recent_posts: DEFAULT_NUM_RECENT_POSTS,
     ...settings,
   }
 }
@@ -75,6 +78,37 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   let repostPercent = settings.repost_percent || DEFAULT_REPOST_PERCENT
 
   let postResults = await ctx.db
+    .with('recentPosts', (db) => {
+        let query: SelectQueryBuilder<any, any, any> = db.selectFrom('post')
+          .innerJoin(
+            'follow as author_follow',
+            (join) => join
+              .onRef('author_follow.target_did', '=', 'post.author_did')
+              .on('author_follow.source_did', '=', requesterDid),
+          )
+
+        if (settings.include_replies) {
+          query = query
+            .leftJoin(
+              'follow as root_follow',
+              (join) => join
+                .onRef('root_follow.target_did', '=', 'post.reply_root_did')
+                .on('root_follow.source_did', '=', requesterDid),
+            )
+            .where((eb) =>
+              eb('reply_parent_uri', 'is', null).or('root_follow.target_did', 'is not', null)
+            )
+
+        } else {
+          query = query.where('reply_parent_uri', 'is', null)
+        }
+
+        return query
+          .select(['post.uri', 'post.cid', 'post.indexed_at'])
+          .orderBy('indexed_at', 'desc')
+          .limit(Number(settings.num_recent_posts) || 0)
+      },
+    )
     .with('rankedPosts', (db) => {
         let query: SelectQueryBuilder<any, any, any> = db.selectFrom('post')
           .innerJoin(
@@ -95,7 +129,6 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
             .where((eb) =>
               eb('reply_parent_uri', 'is', null).or('root_follow.target_did', 'is not', null)
           )
-
         } else {
           query = query.where('reply_parent_uri', 'is', null)
         }
@@ -170,6 +203,10 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
         .unionAll(
           db.selectFrom('limitedReposts')
             .select(['uri', 'cid', 'indexed_at', 'post_uri'])
+        )
+        .unionAll(
+          db.selectFrom('recentPosts')
+            .select(['uri', 'cid', 'indexed_at', sql<string>`null`.as('post_uri')])
         )
     }))
     .selectFrom('combined')
