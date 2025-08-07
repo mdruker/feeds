@@ -3,6 +3,7 @@ import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { debugLog } from '../lib/env'
 import * as AppBskyFeedDefs from '../lexicon/types/app/bsky/feed/defs'
 import { SelectQueryBuilder, sql } from 'kysely'
+import { NEW_ACTOR_PLACEHOLDER_FEED, NO_POSTS_PLACEHOLDER_FEED } from './helpers'
 
 export type CatchupSettings = {
   include_replies: boolean | undefined
@@ -223,6 +224,8 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   const last = postResults.at(-1)
   if (last) {
     cursor = new Date(last.indexed_at).getTime().toString(10) + ':' + last.cid
+  } else {
+    return { feed: NO_POSTS_PLACEHOLDER_FEED };
   }
 
   let numReposts = 0

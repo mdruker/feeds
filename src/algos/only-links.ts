@@ -3,7 +3,7 @@ import { AppContext } from '../config'
 import { populateActor } from '../util/actors'
 import { AtUri } from '@atproto/syntax'
 import { PostProperties } from '../util/properties'
-import { NEW_ACTOR_PLACEHOLDER_FEED } from './helpers'
+import { NEW_ACTOR_PLACEHOLDER_FEED, NO_POSTS_PLACEHOLDER_FEED } from './helpers'
 
 // max 15 chars
 export const shortname = 'only-links'
@@ -106,6 +106,8 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
   const last = posts.at(-1)
   if (last) {
     cursor = new Date(last.indexed_at).getTime().toString(10) + ':' + last.cid
+  } else {
+    return { feed: NO_POSTS_PLACEHOLDER_FEED };
   }
 
   const feed = posts.map((row) => ({
