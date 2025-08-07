@@ -3,6 +3,7 @@ import { AppContext } from '../config'
 import { populateActor } from '../util/actors'
 import { AtUri } from '@atproto/syntax'
 import { PostProperties } from '../util/properties'
+import { NEW_ACTOR_PLACEHOLDER_FEED } from './helpers'
 
 // max 15 chars
 export const shortname = 'only-links'
@@ -17,8 +18,21 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
   if (actor === undefined) {
     console.log(`Did not find ${requesterDid} in the db, starting to populate`)
 
-    // This might take a while, but usually seems OK to wait for it to finish.
-    await populateActor(ctx.db, ctx.didResolver, ctx.jobManager, requesterDid)
+    // Enqueue the job to populate the actor
+    await populateActor(ctx.db, ctx.didResolver, ctx.jobManager, requesterDid, true)
+
+    // If the job finishes quickly enough, we can return the feed immediately.
+    await new Promise(resolve => setTimeout(resolve, 5000))
+    actor = await ctx.db
+      .selectFrom('actor')
+      .selectAll()
+      .where('did', '=', requesterDid)
+      .executeTakeFirst()
+
+    if (actor === undefined) {
+      console.log(`Actor ${requesterDid} still not found after waiting, returning placeholder`)
+      return { feed: NEW_ACTOR_PLACEHOLDER_FEED }
+    }
   }
 
   // Fetch all of actor's follows from the db

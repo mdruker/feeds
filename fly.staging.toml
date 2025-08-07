@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for mdruker-feeds-staging on 2025-05-17T12:43:07-04:00
+# fly.toml app configuration file generated for mdruker-feeds-staging on 2025-08-06T13:28:01-04:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
@@ -6,10 +6,10 @@
 app = 'mdruker-feeds-staging'
 primary_region = 'yyz'
 
-[[env]]
-ENVIRONMENT = "staging"
-
 [build]
+
+[env]
+  ENVIRONMENT = 'staging'
 
 [[mounts]]
   source = 'data'

@@ -2,13 +2,10 @@ import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../config'
 import { generateCatchupFeed } from './catchup-common'
 import { populateActor } from '../util/actors'
+import { NEW_ACTOR_PLACEHOLDER_FEED } from './helpers'
 
 // max 15 chars
 export const shortname = 'catchup'
-
-const NEW_ACTOR_PLACEHOLDER_FEED: { post: any }[] = [{
-  post: 'at://did:plc:spjnerrczdlc4mt3zf3pnjg2/app.bsky.feed.post/3lpudze4prs2w',
-}]
 
 export const handler = async (ctx: AppContext, params: QueryParams, requesterDid: string) => {
   // If we don't know the actor, fetch their follows
