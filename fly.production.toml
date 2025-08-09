@@ -11,13 +11,6 @@ ENVIRONMENT = "production"
 
 [build]
 
-[[mounts]]
-  source = 'data'
-  destination = '/data'
-  auto_extend_size_threshold = 80
-  auto_extend_size_increment = '1GB'
-  auto_extend_size_limit = '10GB'
-
 [http_service]
   internal_port = 3000
   force_https = true

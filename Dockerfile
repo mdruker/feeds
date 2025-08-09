@@ -20,7 +20,7 @@ FROM base AS build
 
 # Install packages needed to build node modules
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3 sqlite3
+    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
 
 # Install node modules
 COPY package.json yarn.lock ./
@@ -41,10 +41,6 @@ FROM base
 
 # Copy built application
 COPY --from=build /app /app
-
-# Setup sqlite3 on a separate volume
-RUN mkdir -p /data
-VOLUME /data
 
 # Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
