@@ -1,0 +1,29 @@
+# fly.toml app configuration file generated for feeds-mysql2 on 2025-08-06T13:19:47-04:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'feeds-mysql2'
+primary_region = 'yyz'
+
+[build]
+  image = 'mysql:9.3.0'
+
+[env]
+  MYSQL_DATABASE = 'feeds_db'
+  MYSQL_USER = 'mysql_user'
+
+[processes]
+  app = '--datadir /data/mysql --range-optimizer-max-mem-size=0 --innodb_buffer_pool_size=2G --innodb_buffer_pool_instances=4 --disable-log-bin --innodb_flush_log_at_trx_commit=2'
+
+[[mounts]]
+  source = 'mysqldata'
+  destination = '/data'
+  auto_extend_size_threshold = 80
+  auto_extend_size_increment = '1GB'
+  auto_extend_size_limit = '40GB'
+
+[[vm]]
+  memory = '4gb'
+  cpu_kind = 'performance'
+  cpus = 1
