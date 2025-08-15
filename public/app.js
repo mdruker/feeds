@@ -58,20 +58,6 @@ async function loadActorScores() {
     const scoresList = document.getElementById('scores-list')
     
     if (data.actorScores && data.actorScores.length > 0) {
-      // Show loading state
-      scoresList.innerHTML = data.actorScores.map(score => `
-        <div class="score-item" data-did="${score.did}">
-          <div class="score-info">
-            <span class="score-handle">Loading...</span>
-            <span class="score-value ${score.score > 0 ? 'positive' : 'negative'}">${score.score > 0 ? '+' : ''}${score.score}</span>
-          </div>
-          <div class="score-actions">
-            <button class="secondary-button edit-score" data-did="${score.did}" data-score="${score.score}" disabled>Edit</button>
-            <button class="secondary-button remove-score" data-did="${score.did}">Remove</button>
-          </div>
-        </div>
-      `).join('')
-      
       // Resolve DIDs to handles
       const dids = data.actorScores.map(score => score.did)
       const handleMap = await resolveMultipleDidsToHandles(dids)
@@ -83,8 +69,8 @@ async function loadActorScores() {
         return `
           <div class="score-item" data-did="${score.did}">
             <div class="score-info">
-              <span class="score-handle">${displayName}</span>
               <span class="score-value ${score.score > 0 ? 'positive' : 'negative'}">${score.score > 0 ? '+' : ''}${score.score}</span>
+              <span class="score-handle">${displayName}</span>
             </div>
             <div class="score-actions">
               <button class="secondary-button edit-score" data-did="${score.did}" data-handle="${handle}" data-score="${score.score}">Edit</button>

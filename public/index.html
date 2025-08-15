@@ -100,9 +100,9 @@
             
             <div id="existing-scores" style="margin-top: 24px;">
                 <h3>Account-Specific Overrides</h3>
-                <p class="setting-description">Override the default for specific accounts. Positive values add to the default, negative values subtract from it.</p>
+                <p class="setting-description">Set positive for more posts from this account, negative for less.</p>
                 <div id="scores-list" class="scores-list">
-                    <!-- Scores will be loaded here -->
+                    <div class="empty-state">Loading...</div>
                 </div>
             </div>
 
@@ -111,7 +111,7 @@
                 <form id="add-score-form">
                     <div class="form-row">
                         <input type="text" id="score-handle" name="handle" placeholder="Enter handle (e.g., alice.bsky.social)" required>
-                        <input type="number" id="score-value" name="score" min="-10" max="10" step="1" placeholder="Score (e.g. -2 or 5)" required>
+                        <input type="number" id="score-value" name="score" min="-100" max="100" step="1" placeholder="Score (e.g. -2 or 5)" required>
                         <button type="submit" class="primary-button">Add Override</button>
                     </div>
                     <div id="profile-preview" class="profile-preview" style="display: none;">
