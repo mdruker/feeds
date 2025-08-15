@@ -97,6 +97,100 @@ export const webRouter = (ctx: AppContext) => {
     return res.json({ success: true })
   }))
 
+  router.get('/api/actor-scores', handler(async (req, res) => {
+    const agent = await getSessionAgent(req, res, ctx)
+    if (!agent) {
+      return res.status(401).json({ error: 'Not logged in' })
+    }
+
+    const actorScores = await ctx.db
+      .selectFrom('follow')
+      .select(['target_did', 'actor_score'])
+      .where('source_did', '=', agent.did!!)
+      .where('actor_score', '!=', 0)
+      .orderBy('target_did', 'asc')
+      .execute()
+
+    return res.json({ 
+      actorScores: actorScores.map(score => ({
+        did: score.target_did,
+        score: score.actor_score
+      }))
+    })
+  }))
+
+  router.post('/api/actor-scores', handler(async (req, res) => {
+    const agent = await getSessionAgent(req, res, ctx)
+    if (!agent) {
+      return res.status(401).json({ error: 'Not logged in' })
+    }
+
+    const { did, score } = req.body
+    
+    if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
+      return res.status(400).json({ error: 'Invalid DID' })
+    }
+
+    if (typeof score !== 'number' || score < -10 || score > 10) {
+      return res.status(400).json({ error: 'Score must be a number between -10 and 10' })
+    }
+
+    // Check if follow relationship exists
+    const existingFollow = await ctx.db
+      .selectFrom('follow')
+      .selectAll()
+      .where('source_did', '=', agent.did!!)
+      .where('target_did', '=', did)
+      .executeTakeFirst()
+
+    if (!existingFollow) {
+      return res.status(400).json({ error: 'You must follow this user to set a score' })
+    }
+
+    // Update the actor score
+    await ctx.db
+      .updateTable('follow')
+      .set({ actor_score: score })
+      .where('source_did', '=', agent.did!!)
+      .where('target_did', '=', did)
+      .execute()
+
+    return res.json({ success: true })
+  }))
+
+  router.post('/api/check-follow', handler(async (req, res) => {
+    const agent = await getSessionAgent(req, res, ctx)
+    if (!agent) {
+      return res.status(401).json({ error: 'Not logged in' })
+    }
+
+    const { did } = req.body
+    
+    if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
+      return res.status(400).json({ error: 'Invalid DID' })
+    }
+
+    // Check if the user follows this account
+    const followExists = await ctx.db
+      .selectFrom('follow')
+      .select(['actor_score'])
+      .where('source_did', '=', agent.did!!)
+      .where('target_did', '=', did)
+      .executeTakeFirst()
+
+    if (!followExists) {
+      return res.json({
+        currentScore: 0,
+        follows: false
+      })
+    } else {
+      return res.json({
+        currentScore: followExists.actor_score,
+        follows: true
+      })
+    }
+  }))
+
   router.post('/jobs/populate-actor/', handler(async (req, res) => {
     const agent = await getSessionAgent(req, res, ctx)
     if (!agent) {

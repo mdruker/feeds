@@ -39,6 +39,12 @@ body {
     padding: var(--spacing-unit);
 }
 
+.card h2 {
+    margin: 0 0 12px 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
 /* Compact cards for admin page */
 body:has(#admin-panel) .card {
     margin-bottom: 8px;
@@ -120,46 +126,85 @@ body:has(#admin-panel) .card h2 {
     margin: 0;
 }
 
-/* Settings */
-.settings-group {
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: var(--spacing-unit);
-    margin: var(--spacing-unit) 0;
-}
-
-.settings-group legend {
-    padding: 0 8px;
-    font-weight: 600;
-    color: var(--text-secondary);
-}
-
-/* Radio options */
-.radio-option {
-    padding: var(--spacing-unit) 0;
+/* Compact Settings */
+.compact-settings {
     display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    border-bottom: 1px solid var(--border-color);
+    flex-direction: column;
+    gap: 20px;
 }
 
-.radio-option:last-child {
+.compact-setting-group {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 16px;
+}
+
+.compact-setting-group:last-child {
     border-bottom: none;
 }
 
-.radio-option label {
-    flex: 1;
-    cursor: pointer;
+.compact-setting-group h3 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.radio-option strong {
-    display: block;
+.experimental-label {
+    font-size: 11px;
+    background: #ffd54f;
+    color: #333;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.compact-options {
+    display: flex;
+    gap: 16px;
     margin-bottom: 4px;
 }
 
-.radio-option .description {
+.compact-radio {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
     font-size: 14px;
+}
+
+.compact-radio input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+}
+
+.compact-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.compact-input-row input {
+    width: 60px;
+    padding: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.input-suffix {
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.setting-description {
+    font-size: 13px;
     color: var(--text-secondary);
+    margin-top: 0;
+    line-height: 1.3;
 }
 
 #login-handle {
@@ -226,6 +271,213 @@ button {
 
 .toast.error {
     background: #cc0000;
+}
+
+.setting-description {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin: 0 0 var(--spacing-unit) 0;
+}
+
+.default-setting {
+    padding: 16px;
+    background: #f8f9fa;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.default-setting h3 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.setting-row input {
+    width: 80px;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.setting-row label {
+    flex: 1;
+    min-width: 200px;
+}
+
+.setting-row button {
+    padding: 8px 16px;
+    min-height: 36px;
+    width: auto;
+}
+
+.scores-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.score-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    background: #fafafa;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+
+.score-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.score-handle {
+    font-weight: 500;
+}
+
+.score-value {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    color: white;
+    font-size: 12px;
+}
+
+.score-value.positive {
+    background: #4CAF50;
+}
+
+.score-value.negative {
+    background: #f44336;
+}
+
+.score-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.score-actions button {
+    padding: 4px 8px;
+    font-size: 12px;
+    min-height: 28px;
+}
+
+.form-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.form-row input {
+    flex: 1;
+    min-width: 200px;
+}
+
+.form-row label {
+    font-weight: 500;
+    min-width: 120px;
+}
+
+.validation-result {
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.validation-result.success {
+    background: #e8f5e8;
+    border: 1px solid #4CAF50;
+    color: #2e7d32;
+}
+
+.validation-result.error {
+    background: #ffebee;
+    border: 1px solid #f44336;
+    color: #c62828;
+}
+
+.help-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 4px 0 0 0;
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+    padding: 16px;
+}
+
+/* Profile preview styles */
+.profile-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+.profile-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+    object-fit: cover;
+    background: var(--border-color);
+    flex-shrink: 0;
+}
+
+.profile-avatar[style*="display: none"] + .profile-info {
+    margin-left: 0;
+}
+
+.profile-info {
+    flex: 1;
+}
+
+.profile-name {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.profile-handle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.profile-status {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.profile-preview.loading {
+    opacity: 0.7;
+}
+
+.profile-preview.error {
+    background: #ffebee;
+    border-color: #f44336;
+}
+
+.profile-preview.error .profile-info {
+    color: #c62828;
 }
 
 /* Admin styles */
@@ -397,5 +649,35 @@ button {
     .compact-form input,
     .compact-form select {
         justify-self: stretch;
+    }
+
+    .compact-options {
+        gap: 24px;
+    }
+
+    .compact-settings {
+        gap: 24px;
+    }
+}
+
+/* Mobile compact adjustments */
+@media (max-width: 767px) {
+    .card {
+        margin-bottom: 8px;
+        padding: 12px;
+    }
+
+    .compact-settings {
+        gap: 16px;
+    }
+
+    .compact-setting-group {
+        padding-bottom: 12px;
+    }
+
+    .compact-options {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
     }
 }
