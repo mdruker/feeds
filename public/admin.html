@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin - feeds.mdruker.app</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="container" id="admin-panel">
+    <!-- Header -->
+    <div class="card">
+        <div class="header-content">
+            <div>
+                <h1>Admin Panel - feeds.mdruker.app</h1>
+                <p class="user-info">Logged in as <span id="user-handle"></span></p>
+            </div>
+            <div>
+                <a href="/" class="secondary-button" style="text-decoration: none; margin-right: 10px;">Settings</a>
+                <form id="logout-form" style="display: inline;">
+                    <button type="submit" class="secondary-button">Log out</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Posts & Feeds -->
+    <div class="card">
+        <h2>Posts & Feeds</h2>
+        <div class="compact-actions">
+            <a href="/showAll" target="_blank" class="compact-button">View All Posts</a>
+            
+            <form id="timeline-form" class="compact-form">
+                <input type="text" id="timeline-handle" name="handle" placeholder="User handle for timeline" required>
+                <button type="submit" class="compact-button">View Timeline</button>
+            </form>
+            
+            <form id="feed-form" class="compact-form">
+                <select id="feed-shortname" name="shortname" required>
+                    <option value="">Feed Algorithm</option>
+                    <option value="catchup">Catchup</option>
+                    <option value="only-links">Only Links</option>
+                </select>
+                <input type="text" id="feed-handle" name="handle" placeholder="User handle for feed test" required>
+                <button type="submit" class="compact-button">Test Feed</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Background Jobs -->
+    <div class="card">
+        <h2>Background Jobs</h2>
+        <div class="admin-section">
+            <div class="admin-action">
+                <h3>Fetch Follow Profiles</h3>
+                <p>Create a background job to fetch follow profiles for a specific DID</p>
+                <form id="follow-profiles-form">
+                    <input type="text" id="follow-profiles-did" name="did" placeholder="Enter DID (e.g., did:plc:...)" required>
+                    <button type="submit" class="primary-button">Create Job</button>
+                </form>
+            </div>
+            
+            <div class="admin-action">
+                <h3>Populate Actor</h3>
+                <p>Create populate-actor jobs for multiple DIDs (one per line)</p>
+                <form id="populate-actor-form">
+                    <textarea id="populate-actor-dids" name="dids" placeholder="Enter DIDs, one per line&#10;did:plc:example1&#10;did:plc:example2" required rows="4"></textarea>
+                    <button type="submit" class="primary-button">Create Jobs</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+<script src="/admin.js"></script>
+</body>
+</html>

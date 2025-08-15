@@ -191,6 +191,14 @@ export const webRouter = (ctx: AppContext) => {
     })
   )
 
+  // Admin page
+  router.get('/admin', handler(async (req, res) => {
+    if (!(await sessionHasAdminPermission(req, res, ctx))) {
+      return res.status(403).json({ error: 'Need admin permission' })
+    }
+    res.sendFile('admin.html', { root: 'public' })
+  }))
+
   // Serve index.html
   router.get('/', (req, res) => {
     res.sendFile('index.html', { root: 'public' })
