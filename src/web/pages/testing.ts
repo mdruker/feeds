@@ -5,7 +5,7 @@ import { QueryParams as GetPostsParams } from '../../lexicon/types/app/bsky/feed
 import { QueryParams as ResolveHandleParams } from '../../lexicon/types/com/atproto/identity/resolveHandle'
 import { AppBskyFeedPost, AtpAgent } from '@atproto/api'
 import { Post } from '../../db/schema'
-import { hasAdminPermission } from '../utils'
+import { sessionHasAdminPermission } from '../utils'
 import algos from '../../algos'
 import { Database } from '../../db/database'
 
@@ -15,7 +15,7 @@ const makeRouter = (ctx: AppContext) => {
   router.get('/showAll', async (_req, res, next) => {
     console.log(`handling /showAll`)
 
-    if (!(await hasAdminPermission(_req, res, ctx))) {
+    if (!(await sessionHasAdminPermission(_req, res, ctx))) {
       return res
         .status(403)
         .type('html')
@@ -44,7 +44,7 @@ const makeRouter = (ctx: AppContext) => {
   router.get('/jobs/fetch-follow-profiles/:did', async (_req, res, next) => {
     console.log(`Adding fetch-follow-profiles job for ${_req.params.did}`)
 
-    if (!(await hasAdminPermission(_req, res, ctx))) {
+    if (!(await sessionHasAdminPermission(_req, res, ctx))) {
       return res
         .status(403)
         .type('html')
@@ -60,7 +60,7 @@ const makeRouter = (ctx: AppContext) => {
   router.get('/showTimeline/:handle', async (_req, res, next) => {
     console.log(`handling /showTimeline for ${_req.params.handle}`)
 
-    if (!(await hasAdminPermission(_req, res, ctx))) {
+    if (!(await sessionHasAdminPermission(_req, res, ctx))) {
       return res
         .status(403)
         .type('html')
@@ -99,7 +99,7 @@ const makeRouter = (ctx: AppContext) => {
   router.get('/showFeed/:shortname/:handle', async (_req, res, next) => {
     console.log(`handling ${_req.path}`)
 
-    if (!(await hasAdminPermission(_req, res, ctx))) {
+    if (!(await sessionHasAdminPermission(_req, res, ctx))) {
       return res
         .status(403)
         .type('html')

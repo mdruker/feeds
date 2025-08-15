@@ -11,7 +11,8 @@ export type DatabaseSchema = {
   feed_settings: FeedSettings
   profile: Profile
   job: Job
-  repost: Repost
+  repost: Repost,
+  news_post: NewsPost
 }
 
 export type SubState = {
@@ -99,4 +100,12 @@ export type Repost = {
   author_did: string
   post_uri: string
   indexed_at: Date
+}
+
+export type NewsPost = {
+  actor_did: string
+  shortname: string
+  post_uri: string
+  created_at: Date
+  cursor_when_shown: string
 }

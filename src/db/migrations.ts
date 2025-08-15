@@ -175,3 +175,22 @@ migrations['001'] = {
       .execute()
   },
 }
+
+migrations['002'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('news_post')
+      .addColumn('actor_did', 'varchar(255)', (col) => col.notNull())
+      .addColumn('shortname', 'varchar(255)', (col) => col.notNull())
+      .addColumn('post_uri', 'varchar(255)', (col) => col.notNull())
+      .addColumn('created_at', 'datetime', (col) => col.notNull())
+      .addColumn('cursor_when_shown', 'varchar(255)')
+      .execute()
+    await db.schema
+      .createIndex('unq_news_post_actor_did_shortname')
+      .on('news_post')
+      .columns(['actor_did', 'shortname'])
+      .unique()
+      .execute()
+  },
+}

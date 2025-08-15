@@ -4,6 +4,7 @@ import { debugLog } from '../lib/env'
 import * as AppBskyFeedDefs from '../lexicon/types/app/bsky/feed/defs'
 import { SelectQueryBuilder, sql } from 'kysely'
 import { NEW_ACTOR_PLACEHOLDER_FEED, NO_POSTS_PLACEHOLDER_FEED } from './helpers'
+import { hasAdminPermission } from '../web/utils'
 
 export type CatchupSettings = {
   include_replies: boolean | undefined
@@ -11,6 +12,8 @@ export type CatchupSettings = {
   repost_percent: number | undefined
   num_recent_posts: number | undefined
 }
+
+const CATCHUP_FEED_SHORTNAME = 'catchup'
 
 const DEFAULT_INCLUDE_REPLIES = false
 const DEFAULT_POSTS_PER_ACCOUNT = 2
@@ -22,7 +25,7 @@ export async function getSettingsWithDefaults(ctx: AppContext, requesterDid: str
     .selectFrom('feed_settings')
     .select('settings')
     .where('actor_did', '=', requesterDid)
-    .where('shortname', '=', 'catchup')
+    .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
     .executeTakeFirst()
   let settingsJson = settingsResult?.settings
   let settings = settingsJson ? JSON.parse(settingsJson) as CatchupSettings : undefined
@@ -45,7 +48,7 @@ export async function updateSettings(ctx: AppContext, actorDid: string, settings
     .insertInto('feed_settings')
     .values({
       actor_did: actorDid,
-      shortname: 'catchup',
+      shortname: CATCHUP_FEED_SHORTNAME,
       settings: settingsJson,
       updated_at: new Date(),
     })
@@ -60,6 +63,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   let t0 = performance.now()
 
   const settings = await getSettingsWithDefaults(ctx, requesterDid)
+  const isAdmin = await hasAdminPermission(ctx, requesterDid)
   debugLog(`Got settings at ${Math.round(performance.now() - t0)}`)
 
   let cursorDate: Date
@@ -73,6 +77,31 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     cursorDate = new Date()
     cursorDate.setMinutes(cursorDate.getMinutes() + 10)
     cursorCid = "zzzzzzzzzzzzzz" // They all start with a metadata prefix
+  }
+
+  let newsUri: string | undefined
+  if (isAdmin) {
+    const newsPost = await ctx.db
+      .selectFrom('news_post')
+      .selectAll()
+      .where('actor_did', '=', requesterDid)
+      .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
+      .executeTakeFirst()
+
+    if (newsPost !== undefined) {
+      if (params.cursor !== undefined && newsPost.cursor_when_shown === params.cursor) {
+        await ctx.db
+          .deleteFrom('news_post')
+          .where('actor_did', '=', requesterDid)
+          .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
+          .execute()
+      } else if (params.cursor === undefined && params.limit > 10) {
+        // Only want to show news when it's a regular new load of the feed.
+
+        newsUri = newsPost.post_uri
+        params.limit = params.limit - 1
+      }
+    }
   }
 
   let postsPerAccount = settings.posts_per_account || DEFAULT_POSTS_PER_ACCOUNT
@@ -220,16 +249,16 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     .limit(params.limit)
     .execute()
 
-  let cursor: string | undefined
-  const last = postResults.at(-1)
-  if (last) {
-    cursor = new Date(last.indexed_at).getTime().toString(10) + ':' + last.cid
-  } else {
-    return { feed: NO_POSTS_PLACEHOLDER_FEED };
+  if (postResults.length === 0) {
+    return { feed: NO_POSTS_PLACEHOLDER_FEED }
   }
 
+  let cursor: string | undefined
+  const last = postResults.at(-1)!!
+  cursor = new Date(last.indexed_at).getTime().toString(10) + ':' + last.cid
+
   let numReposts = 0
-  const feed: AppBskyFeedDefs.SkeletonFeedPost[] = postResults.map((row) => {
+  let feed: AppBskyFeedDefs.SkeletonFeedPost[] = postResults.map((row) => {
     if (row.post_uri) {
       numReposts++
       return {
@@ -245,6 +274,17 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
       }
     }
   })
+
+  if (newsUri !== undefined) {
+    feed = [ { post: newsUri }].concat(feed)
+
+    await ctx.db
+      .updateTable('news_post')
+      .where('actor_did', '=', requesterDid)
+      .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
+      .set('cursor_when_shown', cursor)
+      .execute()
+  }
 
   debugLog(`Generated feed with ${feed.length} entries (${numReposts} reposts) at ${Math.round(performance.now() - t0)}, postsPerAccount: ${postsPerAccount}, repostPercent: ${repostPercent}`)
 

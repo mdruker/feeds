@@ -6,7 +6,7 @@ import express from 'express'
 import { getIronSession } from 'iron-session'
 import { AppContext } from '../config'
 import { CatchupSettings, getSettingsWithDefaults, updateSettings } from '../algos/catchup-common'
-import { hasAdminPermission } from './utils'
+import { sessionHasAdminPermission } from './utils'
 
 type Session = { did: string }
 
@@ -103,7 +103,7 @@ export const webRouter = (ctx: AppContext) => {
       return res.status(401).json({ error: 'Not logged in' })
     }
 
-    if (!(await hasAdminPermission(req, res, ctx))) {
+    if (!(await sessionHasAdminPermission(req, res, ctx))) {
       return res.status(403).json({ error: 'Need admin permission' })
     }
 
