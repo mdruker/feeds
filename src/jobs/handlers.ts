@@ -1,14 +1,9 @@
 import { Database } from '../db/database'
 import { DidResolver } from '@atproto/identity'
-import { Profile } from '../db/schema'
 import { populateActor } from '../util/actors'
 import { JobManager } from './manager'
-import { sql } from 'kysely'
 
 export interface JobTypes {
-  'fetch-follow-profiles': {
-    did: string
-  }
   'populate-actor': {
     did: string
   }
@@ -50,85 +45,6 @@ export class JobHandlerRegistry {
 }
 
 export const jobHandlers = new JobHandlerRegistry()
-
-jobHandlers.register({
-  type: 'fetch-follow-profiles',
-  handler: async (payload, ctx) => {
-    console.log(`Fetching follow profiles for ${payload.did}`)
-
-    // Follows that we need to populate.
-    const follows = await ctx.db
-      .selectFrom('follow')
-      .select('target_did')
-      .distinct()
-      .leftJoin('profile', 'profile.did', 'follow.target_did')
-      .where('source_did', '=', payload.did)
-      .where('profile.handle', 'is', null)
-      .execute()
-
-    let dids = follows.map(follow => follow.target_did)
-    // Look up the acting account too
-    if (!dids.includes(payload.did)) {
-      dids.push(payload.did)
-    }
-
-    const atPrefix = 'at://'
-    const didWebPrefix = 'did:web:'
-    let newProfiles: Profile[] = []
-    let failedFetches = 0
-
-    for (const did of dids) {
-      let resolvedDid
-      try {
-        resolvedDid = await ctx.didResolver.resolve(did)
-      } catch (err) {
-        console.log(`Error resolving did: ${did}`, err)
-        failedFetches++
-      }
-
-      if (failedFetches > 20) {
-        throw Error('Too many failed fetches')
-      }
-
-      let alsoKnownAs = resolvedDid?.alsoKnownAs?.at(0)
-      let handle: string | undefined
-
-      if (alsoKnownAs?.startsWith(atPrefix)) {
-        handle = alsoKnownAs.slice(atPrefix.length)
-      } else if (did.startsWith('did:web:')) {
-        handle = did.slice(didWebPrefix.length)
-      }
-
-      newProfiles.push({
-        'did': did,
-        'handle': handle,
-        'updated_at': new Date()
-      })
-
-      if (newProfiles.length % 1000 === 0) {
-        await insertProfiles(newProfiles)
-        console.log(`Inserted ${newProfiles.length} profiles for ${payload.did}`)
-        newProfiles = []
-      }
-    }
-
-    if (newProfiles.length > 0) {
-      await insertProfiles(newProfiles)
-      console.log(`Inserted ${newProfiles.length} profiles for ${payload.did}`)
-    }
-
-    async function insertProfiles(profiles: Profile[]) {
-      await ctx.db
-        .insertInto('profile')
-        .values(profiles)
-        .onDuplicateKeyUpdate({
-          handle: sql`VALUES(handle)`,
-          updated_at: sql`VALUES(updated_at)`
-        })
-        .execute()
-    }
-  }
-})
 
 jobHandlers.register({
   type: 'populate-actor',

@@ -64,38 +64,6 @@ document.getElementById('feed-form').addEventListener('submit', async (e) => {
   window.open(`/showFeed/${encodeURIComponent(shortname)}/${encodeURIComponent(handle)}`, '_blank')
 })
 
-// Follow profiles form handler
-document.getElementById('follow-profiles-form').addEventListener('submit', async (e) => {
-  e.preventDefault()
-  const form = e.target
-  const did = form.did.value.trim()
-  
-  if (!did) {
-    showToast('Please enter a DID', true)
-    return
-  }
-  
-  if (!did.startsWith('did:')) {
-    showToast('DID must start with "did:"', true)
-    return
-  }
-  
-  try {
-    const response = await fetch(`/jobs/fetch-follow-profiles/${encodeURIComponent(did)}`)
-    
-    if (response.ok) {
-      showToast('Follow profiles job created successfully')
-      form.reset()
-    } else {
-      const text = await response.text()
-      showToast(`Error creating job: ${text}`, true)
-    }
-  } catch (error) {
-    console.error('Error creating follow profiles job:', error)
-    showToast('Error creating job', true)
-  }
-})
-
 // Populate actor form handler
 document.getElementById('populate-actor-form').addEventListener('submit', async (e) => {
   e.preventDefault()

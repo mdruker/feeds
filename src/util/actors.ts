@@ -2,6 +2,7 @@ import { AtpAgent } from '@atproto/api'
 import { Database } from '../db/database'
 import { DidResolver } from '@atproto/identity'
 import { JobManager } from '../jobs/manager'
+import { sql } from 'kysely'
 
 const MAX_FOLLOWS_TO_INDEX = 30000
 
@@ -80,7 +81,7 @@ export async function populateActor(
       .execute()
   }
 
-  await jobManager.createJob('fetch-follow-profiles', { 'did': requesterDid })
+  await fetchProfile(db, didResolver, requesterDid)
 
   await db
     .insertInto('actor')
@@ -91,4 +92,45 @@ export async function populateActor(
     .ignore()
     .execute()
   console.log(`Added ${requesterDid} / ${actorResponse.data.handle}, with ${followsCreate.length} follows`)
+}
+
+async function fetchProfile(
+  db: Database,
+  didResolver: DidResolver,
+  did: string,
+) {
+  console.log(`Fetching profile for ${did}`)
+
+  const atPrefix = 'at://'
+  const didWebPrefix = 'did:web:'
+
+  let resolvedDid
+  try {
+    resolvedDid = await didResolver.resolve(did)
+  } catch (err) {
+    console.log(`Error resolving did: ${did}`, err)
+    return
+  }
+
+  let alsoKnownAs = resolvedDid?.alsoKnownAs?.at(0)
+  let handle: string | undefined
+
+  if (alsoKnownAs?.startsWith(atPrefix)) {
+    handle = alsoKnownAs.slice(atPrefix.length)
+  } else if (did.startsWith('did:web:')) {
+    handle = did.slice(didWebPrefix.length)
+  }
+
+  await db
+    .insertInto('profile')
+    .values([{
+      'did': did,
+      'handle': handle,
+      'updated_at': new Date()
+    }])
+    .onDuplicateKeyUpdate({
+      handle: sql`VALUES(handle)`,
+      updated_at: sql`VALUES(updated_at)`
+    })
+    .execute()
 }
