@@ -2,7 +2,7 @@ import dotenv from 'dotenv'
 import { AtpAgent, BlobRef } from '@atproto/api'
 import fs from 'fs/promises'
 import { ids } from '../src/lexicon/lexicons'
-import { input, password } from '@inquirer/prompts'
+import { input, password, confirm } from '@inquirer/prompts'
 
 const run = async () => {
   dotenv.config()
@@ -29,6 +29,11 @@ const run = async () => {
   const displayName = await input({
     message: 'Enter a display name for your feed',
     validate: (value) => value.length > 0
+  })
+
+  const acceptsInteractions = await confirm({
+    message: 'Does this feed accept "show more"/"show less" interactions?',
+    default: false
   })
 
   const description = await input({
@@ -72,6 +77,7 @@ const run = async () => {
       description: description,
       avatar: avatarRef,
       createdAt: new Date().toISOString(),
+      acceptsInteractions: acceptsInteractions
     },
   })
 
