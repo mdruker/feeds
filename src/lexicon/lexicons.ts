@@ -1,6 +1,7 @@
 /**
  * GENERATED CODE - DO NOT MODIFY
  */
+import { AppBskyFeedSendInteractions } from '@atproto/api'
 import { LexiconDoc, Lexicons } from '@atproto/lexicon'
 
 export const schemaDict = {
@@ -4720,6 +4721,29 @@ export const schemaDict = {
               ref: 'lex:app.bsky.graph.defs#listViewBasic',
             },
           },
+        },
+      },
+      interaction: {
+        "type": "object",
+        "properties": {
+          "item": { "type": "string", "format": "at-uri" },
+          "event": {
+            "type": "string",
+            "knownValues": [
+              "app.bsky.feed.defs#requestLess",
+              "app.bsky.feed.defs#requestMore",
+              "app.bsky.feed.defs#clickthroughItem",
+              "app.bsky.feed.defs#clickthroughAuthor",
+              "app.bsky.feed.defs#clickthroughReposter",
+              "app.bsky.feed.defs#clickthroughEmbed",
+              "app.bsky.feed.defs#interactionSeen",
+              "app.bsky.feed.defs#interactionLike",
+              "app.bsky.feed.defs#interactionRepost",
+              "app.bsky.feed.defs#interactionReply",
+              "app.bsky.feed.defs#interactionQuote",
+              "app.bsky.feed.defs#interactionShare"
+            ]
+          }
         },
       },
     },
