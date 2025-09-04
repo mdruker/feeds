@@ -4,6 +4,7 @@ import express from 'express'
 import { DidResolver, MemoryCache } from '@atproto/identity'
 import { createServer } from './lexicon'
 import feedGeneration from './methods/get-feed-skeleton'
+import sendInteractions from './methods/send-interactions'
 import describeGenerator from './methods/describe-generator'
 import { createDb, Database, migrateToLatest } from './db/database'
 import { FirehoseSubscription } from './subscription'
@@ -82,6 +83,7 @@ export class FeedGenerator {
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
     feedGeneration(server, ctx)
+    sendInteractions(server, ctx)
 
     // Static assets
     app.use('/public', express.static(path.join(__dirname, 'web/pages', 'public')))
