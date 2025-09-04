@@ -1,11 +1,9 @@
-import { AuthRequiredError, InvalidRequestError } from '@atproto/xrpc-server'
 import { Server } from '../lexicon'
 import { AppContext } from '../config'
-import algos from '../algos'
 import { validateAuth } from '../auth'
 import { AtUri } from '@atproto/syntax'
 import { hasAdminPermission } from '../web/utils'
-import { sql } from 'kysely/dist/esm'
+import { sql } from 'kysely'
 
 export default function (server: Server, ctx: AppContext) {
   server.app.bsky.feed.sendInteractions(async ({ input, req }) => {
