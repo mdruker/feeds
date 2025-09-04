@@ -1,35 +1,42 @@
 /**
  * GENERATED CODE - DO NOT MODIFY
  */
-import express from 'express'
-import { ValidationResult, BlobRef } from '@atproto/lexicon'
-import { lexicons } from '../../../../lexicons'
-import { isObj, hasProp } from '../../../../util'
+import { type ValidationResult, BlobRef } from '@atproto/lexicon'
 import { CID } from 'multiformats/cid'
-import { HandlerAuth } from '@atproto/xrpc-server'
+import { validate as _validate } from '../../../../lexicons'
+import {
+  type $Typed,
+  is$typed as _is$typed,
+  type OmitKey,
+} from '../../../../util'
+import type * as ComAtprotoRepoDefs from './defs.js'
 
-export interface QueryParams {}
+const is$typed = _is$typed,
+  validate = _validate
+const id = 'com.atproto.repo.createRecord'
+
+export type QueryParams = {}
 
 export interface InputSchema {
-  /** The handle or DID of the repo. */
+  /** The handle or DID of the repo (aka, current account). */
   repo: string
   /** The NSID of the record collection. */
   collection: string
-  /** The key of the record. */
+  /** The Record Key. */
   rkey?: string
-  /** Validate the record? */
-  validate: boolean
-  /** The record to create. */
-  record: {}
-  /** Compare and swap with the previous commit by cid. */
+  /** Can be set to 'false' to skip Lexicon schema validation of record data, 'true' to require it, or leave unset to validate only for known Lexicons. */
+  validate?: boolean
+  /** The record itself. Must contain a $type field. */
+  record: { [_ in string]: unknown }
+  /** Compare and swap with the previous commit by CID. */
   swapCommit?: string
-  [k: string]: unknown
 }
 
 export interface OutputSchema {
   uri: string
   cid: string
-  [k: string]: unknown
+  commit?: ComAtprotoRepoDefs.CommitMeta
+  validationStatus?: 'valid' | 'unknown' | (string & {})
 }
 
 export interface HandlerInput {
@@ -50,13 +57,3 @@ export interface HandlerError {
 }
 
 export type HandlerOutput = HandlerError | HandlerSuccess
-export type HandlerReqCtx<HA extends HandlerAuth = never> = {
-  auth: HA
-  params: QueryParams
-  input: HandlerInput
-  req: express.Request
-  res: express.Response
-}
-export type Handler<HA extends HandlerAuth = never> = (
-  ctx: HandlerReqCtx<HA>,
-) => Promise<HandlerOutput> | HandlerOutput
