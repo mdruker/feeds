@@ -106,32 +106,35 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
 
   let postResults = await ctx.db
     .with('recentPosts', (db) => {
-        let query: SelectQueryBuilder<any, any, any> = db.selectFrom('post')
+        let postsQuery: SelectQueryBuilder<any, any, any> = db.selectFrom('post')
           .innerJoin(
             'follow as author_follow',
             (join) => join
               .onRef('author_follow.target_did', '=', 'post.author_did')
               .on('author_follow.source_did', '=', requesterDid),
           )
+          .leftJoin(
+            'follow as root_follow',
+            (join) => join
+              .onRef('root_follow.target_did', '=', 'post.reply_root_did')
+              .on('root_follow.source_did', '=', requesterDid),
+          )
+          .where((eb) =>
+            eb('reply_parent_uri', 'is', null).or('root_follow.target_did', 'is not', null)
+          )
+          .select(['post.uri', 'post.cid', sql<string>`null`.as('post_uri'), 'post.indexed_at'])
 
-        if (settings.include_replies) {
-          query = query
-            .leftJoin(
-              'follow as root_follow',
-              (join) => join
-                .onRef('root_follow.target_did', '=', 'post.reply_root_did')
-                .on('root_follow.source_did', '=', requesterDid),
-            )
-            .where((eb) =>
-              eb('reply_parent_uri', 'is', null).or('root_follow.target_did', 'is not', null)
-            )
+        const repostsQuery = db.selectFrom('repost')
+          .innerJoin(
+            'follow',
+            (join) => join
+              .onRef('follow.target_did', '=', 'repost.author_did')
+              .on('follow.source_did', '=', requesterDid),
+          )
+          .select(['repost.uri as uri', 'repost.cid', 'repost.post_uri', 'repost.indexed_at'])
 
-        } else {
-          query = query.where('reply_parent_uri', 'is', null)
-        }
-
-        return query
-          .select(['post.uri', 'post.cid', 'post.indexed_at'])
+        return postsQuery
+          .unionAll(repostsQuery)
           .orderBy('indexed_at', 'desc')
           .limit(Number(settings.num_recent_posts) || 0)
       },
@@ -233,7 +236,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
         )
         .unionAll(
           db.selectFrom('recentPosts')
-            .select(['uri', 'cid', 'indexed_at', sql<string>`null`.as('post_uri')])
+            .select(['uri', 'cid', 'indexed_at', 'post_uri'])
         )
     }))
     .selectFrom('combined')
