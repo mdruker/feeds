@@ -17,9 +17,7 @@ export default function (server: Server, ctx: AppContext) {
       if (interaction.item === undefined) {
         continue
       }
-      if (await hasAdminPermission(ctx, requesterDid)) {
-        console.log('Processing interaction:', interaction.item, 'Event:', interaction.event)
-      }
+      console.log('Processing interaction:', interaction.item, 'Event:', interaction.event)
       const postUri = new AtUri(interaction.item)
       let actorUpdate: number
       if (interaction.event === 'app.bsky.feed.defs#requestLess') {
