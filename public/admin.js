@@ -124,5 +124,45 @@ document.getElementById('logout-form').addEventListener('submit', async (e) => {
   }
 })
 
+// News post form handler
+document.getElementById('news-post-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const form = e.target
+  const postUri = form.post_uri.value.trim()
+  const shortname = form.shortname.value
+  
+  if (!postUri || !shortname) {
+    showToast('Please enter a post URI and select a feed', true)
+    return
+  }
+  
+  if (!postUri.startsWith('at://')) {
+    showToast('Post URI must start with "at://"', true)
+    return
+  }
+  
+  try {
+    const response = await fetch('/api/news-post', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ post_uri: postUri, shortname })
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      showToast(`News post created for ${data.count} actors`)
+      form.reset()
+    } else {
+      const data = await response.json()
+      showToast(`Error creating news post: ${data.error}`, true)
+    }
+  } catch (error) {
+    console.error('Error creating news post:', error)
+    showToast('Error creating news post', true)
+  }
+})
+
 // Load initial data
 loadUserData()

@@ -7,6 +7,7 @@ import { getIronSession } from 'iron-session'
 import { AppContext } from '../config'
 import { CatchupSettings, getSettingsWithDefaults, updateSettings } from '../algos/catchup-common'
 import { sessionHasAdminPermission } from './utils'
+import { allShortnames } from '../algos'
 
 type Session = { did: string }
 
@@ -215,6 +216,68 @@ export const webRouter = (ctx: AppContext) => {
     }
 
     return res.json({ success: true })
+  }))
+
+  router.post('/api/news-post', handler(async (req, res) => {
+    const agent = await getSessionAgent(req, res, ctx)
+    if (!agent) {
+      return res.status(401).json({ error: 'Not logged in' })
+    }
+
+    if (!(await sessionHasAdminPermission(req, res, ctx))) {
+      return res.status(403).json({ error: 'Need admin permission' })
+    }
+
+    const { post_uri, shortname } = req.body
+    
+    if (!post_uri || typeof post_uri !== 'string' || !post_uri.startsWith('at://')) {
+      return res.status(400).json({ error: 'Invalid post URI - must start with at://' })
+    }
+
+    if (!shortname || !allShortnames.has(shortname)) {
+      return res.status(400).json({ error: 'Invalid shortname' })
+    }
+
+    try {
+      const actors = await ctx.db
+        .selectFrom('actor')
+        .select(['did'])
+        .execute()
+
+      console.log(`Creating news post for ${actors.length} actors`)
+
+      const newsPostEntries = actors.map(actor => ({
+        actor_did: actor.did,
+        shortname: shortname,
+        post_uri: post_uri,
+        created_at: new Date(),
+        cursor_when_shown: ''
+      }))
+
+      // Add news entry, updating it to the latest if there's already one.
+      if (newsPostEntries.length > 0) {
+        for (const entry of newsPostEntries) {
+          await ctx.db
+            .insertInto('news_post')
+            .values(entry)
+            .onDuplicateKeyUpdate({
+              post_uri: entry.post_uri,
+              created_at: entry.created_at,
+              cursor_when_shown: entry.cursor_when_shown
+            })
+            .execute()
+        }
+      }
+
+      return res.json({ 
+        success: true, 
+        count: actors.length,
+        message: `News post created for ${actors.length} users` 
+      })
+    } catch (error) {
+      console.error('Error creating news post:', error)
+      return res.status(500).json({ error: 'Internal server error' })
+    }
   }))
 
   // OAuth metadata

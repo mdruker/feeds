@@ -63,7 +63,6 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   let t0 = performance.now()
 
   const settings = await getSettingsWithDefaults(ctx, requesterDid)
-  const isAdmin = await hasAdminPermission(ctx, requesterDid)
   debugLog(`Got settings at ${Math.round(performance.now() - t0)}`)
 
   let cursorDate: Date
@@ -80,27 +79,25 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   }
 
   let newsUri: string | undefined
-  if (isAdmin) {
-    const newsPost = await ctx.db
-      .selectFrom('news_post')
-      .selectAll()
-      .where('actor_did', '=', requesterDid)
-      .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
-      .executeTakeFirst()
+  const newsPost = await ctx.db
+    .selectFrom('news_post')
+    .selectAll()
+    .where('actor_did', '=', requesterDid)
+    .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
+    .executeTakeFirst()
 
-    if (newsPost !== undefined) {
-      if (params.cursor !== undefined && newsPost.cursor_when_shown === params.cursor) {
-        await ctx.db
-          .deleteFrom('news_post')
-          .where('actor_did', '=', requesterDid)
-          .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
-          .execute()
-      } else if (params.cursor === undefined && params.limit > 10) {
-        // Only want to show news when it's a regular new load of the feed.
+  if (newsPost !== undefined) {
+    if (params.cursor !== undefined && newsPost.cursor_when_shown === params.cursor) {
+      await ctx.db
+        .deleteFrom('news_post')
+        .where('actor_did', '=', requesterDid)
+        .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
+        .execute()
+    } else if (params.cursor === undefined && params.limit > 10) {
+      // Only want to show news when it's a regular new load of the feed.
 
-        newsUri = newsPost.post_uri
-        params.limit = params.limit - 1
-      }
+      newsUri = newsPost.post_uri
+      params.limit = params.limit - 1
     }
   }
 

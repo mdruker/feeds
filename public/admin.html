@@ -60,6 +60,26 @@
             </div>
         </div>
     </div>
+
+    <!-- News Posts -->
+    <div class="card">
+        <h2>News Posts</h2>
+        <div class="admin-section">
+            <div class="admin-action">
+                <h3>Create News Post</h3>
+                <p>Insert a news post for all current users in a specific feed</p>
+                <form id="news-post-form">
+                    <input type="text" id="news-post-uri" name="post_uri" placeholder="Post URI (at://...)" required>
+                    <select id="news-shortname" name="shortname" required>
+                        <option value="">Select Feed</option>
+                        <option value="catchup">Catchup</option>
+                        <option value="only-links">Only Links</option>
+                    </select>
+                    <button type="submit" class="primary-button">Create News Post</button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Toast Notification -->
