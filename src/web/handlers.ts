@@ -1,7 +1,7 @@
 import assert from 'node:assert'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { isValidHandle } from '@atproto/syntax'
-import { Agent } from '@atproto/api'
+import { Agent, AtpAgent } from '@atproto/api'
 import express from 'express'
 import { getIronSession } from 'iron-session'
 import { AppContext } from '../config'
@@ -59,9 +59,12 @@ export const webRouter = (ctx: AppContext) => {
     if (!agent) {
       return res.status(401).json({ error: 'Not logged in' })
     }
-
-    const profile = await agent.getProfile({ actor: agent.did!! })
     const settings = await getSettingsWithDefaults(ctx, agent.did!!)
+
+    const atpAgent = new AtpAgent({
+      service: 'https://api.bsky.app'
+    })
+    const profile = await atpAgent.getProfile({ actor: agent.did!! })
 
     return res.json({
       handle: profile.data.handle,
@@ -324,7 +327,7 @@ export const webRouter = (ctx: AppContext) => {
       // Initiate the OAuth flow
       try {
         const url = await ctx.oauthClient.authorize(handle, {
-          scope: 'atproto transition:generic',
+          scope: 'atproto',
         })
         return res.redirect(url.toString())
       } catch (err) {

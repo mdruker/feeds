@@ -15,10 +15,10 @@ export const createOauthClient = (db: Database, cfg: Config) => {
       client_name: 'feeds.mdruker.app - feed settings',
       client_id: publicUrl
         ? `${url}/client-metadata.json`
-        : `http://localhost?redirect_uri=${enc(`${url}/oauth/callback`)}&scope=${enc('atproto transition:generic')}`,
+        : `http://localhost?redirect_uri=${enc(`${url}/oauth/callback`)}&scope=${enc('atproto')}`,
       client_uri: url,
       redirect_uris: [`${url}/oauth/callback`],
-      scope: 'atproto transition:generic',
+      scope: 'atproto',
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
       application_type: 'web',
