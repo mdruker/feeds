@@ -18,7 +18,7 @@ const CATCHUP_FEED_SHORTNAME = 'catchup'
 const DEFAULT_INCLUDE_REPLIES = true
 const DEFAULT_POSTS_PER_ACCOUNT = 2
 const DEFAULT_REPOST_PERCENT = 10
-const DEFAULT_NUM_RECENT_POSTS = 0
+const DEFAULT_NUM_RECENT_POSTS = 10
 
 export async function getSettingsWithDefaults(ctx: AppContext, requesterDid: string): Promise<CatchupSettings> {
   let settingsResult = await ctx.db
