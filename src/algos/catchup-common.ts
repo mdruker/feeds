@@ -104,7 +104,12 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     cursorCid = strings.length == 2 ? strings[1] : ''
   } else {
     cursorDate = new Date()
-    cursorDate.setMinutes(cursorDate.getMinutes() + 10)
+    if (chronological) {
+      cursorDate.setHours(cursorDate.getHours() - 24)
+    } else {
+      // What if there's some posts from the future... those count, right?
+      cursorDate.setMinutes(cursorDate.getMinutes() + 10)
+    }
     cursorCid = "zzzzzzzzzzzzzz" // They all start with a metadata prefix
   }
 
