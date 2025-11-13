@@ -283,8 +283,8 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     cutOffDate.setMinutes(cutOffDate.getMinutes() - 30)
 
     queryBuilder = queryBuilder
+      .where('indexed_at', '<', cutOffDate)
       .where(({ eb, or, and }) => or([
-        eb('indexed_at', '<', cutOffDate),
         eb('indexed_at', '>', cursorDate),
         and([eb('indexed_at', '=', cursorDate), eb('cid', '<', cursorCid)])
       ]))
