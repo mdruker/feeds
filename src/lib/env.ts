@@ -12,8 +12,12 @@ export function isProduction(): boolean {
   return process.env.ENVIRONMENT === Env.production
 }
 
-export function debugLog(text: string) {
+export function debugLog(message?: any, ...optionalParams: any[]) {
   if (!isProduction()) {
-    console.log(text)
+    if (optionalParams.length === 0) {
+      console.log(message)
+    } else {
+      console.log(message, optionalParams)
+    }
   }
 }

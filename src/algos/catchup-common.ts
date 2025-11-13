@@ -4,7 +4,7 @@ import { debugLog } from '../lib/env'
 import * as AppBskyFeedDefs from '../lexicon/types/app/bsky/feed/defs'
 import { SelectQueryBuilder, sql } from 'kysely'
 import { NEW_ACTOR_PLACEHOLDER_FEED, NO_POSTS_PLACEHOLDER_FEED } from './helpers'
-import { hasAdminPermission } from '../web/utils'
+import { populateActor } from '../util/actors'
 
 export type CatchupSettings = {
   include_replies: boolean | undefined
@@ -39,6 +39,36 @@ export async function getSettingsWithDefaults(ctx: AppContext, requesterDid: str
   }
 }
 
+export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams, chronological: boolean) {
+  // If we don't know the actor, fetch their follows
+  let actor = await ctx.db
+    .selectFrom('actor')
+    .selectAll()
+    .where('did', '=', requesterDid)
+    .executeTakeFirst()
+  if (actor === undefined) {
+    console.log(`Did not find ${requesterDid} in the db, starting to populate`)
+
+    // Enqueue the job to populate the actor
+    await populateActor(ctx.db, ctx.didResolver, ctx.jobManager, requesterDid, true)
+
+    // If the job finishes quickly enough, we can return the feed immediately.
+    await new Promise(resolve => setTimeout(resolve, 5000))
+    actor = await ctx.db
+      .selectFrom('actor')
+      .selectAll()
+      .where('did', '=', requesterDid)
+      .executeTakeFirst()
+
+    if (actor === undefined) {
+      console.log(`Actor ${requesterDid} still not found after waiting, returning placeholder`)
+      return { feed: NEW_ACTOR_PLACEHOLDER_FEED }
+    }
+  }
+
+  return await generateCatchupFeed(ctx, requesterDid, params, chronological)
+}
+
 export async function updateSettings(ctx: AppContext, actorDid: string, settings: CatchupSettings) {
   let settingsJson = JSON.stringify(settings)
 
@@ -59,7 +89,7 @@ export async function updateSettings(ctx: AppContext, actorDid: string, settings
     .execute()
 }
 
-export async function generateCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams) {
+export async function generateCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams, chronological: boolean) {
   let t0 = performance.now()
 
   const settings = await getSettingsWithDefaults(ctx, requesterDid)
@@ -103,8 +133,12 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
 
   let postsPerAccount = settings.posts_per_account || DEFAULT_POSTS_PER_ACCOUNT
   let repostPercent = settings.repost_percent || DEFAULT_REPOST_PERCENT
+  let numRecentPosts = Number(settings.num_recent_posts) || 0
+  if (chronological) {
+    numRecentPosts = 0
+  }
 
-  let postResults = await ctx.db
+  let queryBuilder = ctx.db
     .with('recentPosts', (db) => {
         let postsQuery: SelectQueryBuilder<any, any, any> = db.selectFrom('post')
           .innerJoin(
@@ -136,7 +170,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
         return postsQuery
           .unionAll(repostsQuery)
           .orderBy('indexed_at', 'desc')
-          .limit(Number(settings.num_recent_posts) || 0)
+          .limit(numRecentPosts)
       },
     )
     .with('rankedPosts', (db) => {
@@ -158,7 +192,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
             )
             .where((eb) =>
               eb('reply_parent_uri', 'is', null).or('root_follow.target_did', 'is not', null)
-          )
+            )
         } else {
           query = query.where('reply_parent_uri', 'is', null)
         }
@@ -241,11 +275,30 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     }))
     .selectFrom('combined')
     .selectAll()
-    .where(({ eb, or, and }) => or([
+
+  if (chronological) {
+    // For chronological, we don't want to get all the way to current posts,
+    // it would be too variable
+    let cutOffDate = new Date()
+    cutOffDate.setMinutes(cutOffDate.getMinutes() - 30)
+
+    queryBuilder = queryBuilder
+      .where(({ eb, or, and }) => or([
+        eb('indexed_at', '<', cutOffDate),
+        eb('indexed_at', '>', cursorDate),
+        and([eb('indexed_at', '=', cursorDate), eb('cid', '<', cursorCid)])
+      ]))
+      .orderBy(['indexed_at asc', 'cid desc'])
+  } else {
+    queryBuilder = queryBuilder
+      .where(({ eb, or, and }) => or([
         eb('indexed_at', '<', cursorDate),
         and([eb('indexed_at', '=', cursorDate), eb('cid', '<', cursorCid)])
       ]))
-    .orderBy(['indexed_at desc', 'cid desc'])
+      .orderBy(['indexed_at desc', 'cid desc'])
+  }
+
+  let postResults = await queryBuilder
     .limit(params.limit)
     .execute()
 
