@@ -111,7 +111,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     cursor = feedState?.latest_seen_cursor
   }
 
-  // TODO: ignore the cursor if it's too old
+  // TODO: ignore the cursor if it's too old or malformed
   if (cursor) {
     let strings = cursor.split(':')
     cursorDate = new Date(parseInt(strings[0], 10))
