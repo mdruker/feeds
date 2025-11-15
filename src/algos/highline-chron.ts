@@ -6,5 +6,5 @@ import { handleCatchupFeed } from './catchup-common'
 export const shortname = 'highline-chron'
 
 export const handler = async (ctx: AppContext, params: QueryParams, requesterDid: string) => {
-  return await handleCatchupFeed(ctx, requesterDid, params, true)
+  return await handleCatchupFeed(ctx, requesterDid, params, shortname)
 }

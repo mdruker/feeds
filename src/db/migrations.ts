@@ -194,3 +194,21 @@ migrations['002'] = {
       .execute()
   },
 }
+
+migrations['003'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('feed_state')
+      .addColumn('actor_did', 'varchar(255)', (col) => col.notNull())
+      .addColumn('shortname', 'varchar(255)', (col) => col.notNull())
+      .addColumn('latest_seen_cursor', 'varchar(255)')
+      .execute()
+
+    await db.schema
+      .createIndex('unq_feed_state_actor_did_shortname')
+      .on('feed_state')
+      .columns(['actor_did', 'shortname'])
+      .unique()
+      .execute()
+  },
+}

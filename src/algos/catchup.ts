@@ -6,5 +6,5 @@ import { handleCatchupFeed } from './catchup-common'
 export const shortname = 'catchup'
 
 export const handler = async (ctx: AppContext, params: QueryParams, requesterDid: string) => {
-  return await handleCatchupFeed(ctx, requesterDid, params, false)
+  return await handleCatchupFeed(ctx, requesterDid, params, shortname)
 }

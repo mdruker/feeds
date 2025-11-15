@@ -5,6 +5,8 @@ import * as AppBskyFeedDefs from '../lexicon/types/app/bsky/feed/defs'
 import { SelectQueryBuilder, sql } from 'kysely'
 import { NEW_ACTOR_PLACEHOLDER_FEED, NO_POSTS_PLACEHOLDER_FEED } from './helpers'
 import { populateActor } from '../util/actors'
+import * as highlineChron from './highline-chron'
+import { getCursor } from '../util/cursors'
 
 export type CatchupSettings = {
   include_replies: boolean | undefined
@@ -39,7 +41,7 @@ export async function getSettingsWithDefaults(ctx: AppContext, requesterDid: str
   }
 }
 
-export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams, chronological: boolean) {
+export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams, shortname: string) {
   // If we don't know the actor, fetch their follows
   let actor = await ctx.db
     .selectFrom('actor')
@@ -66,7 +68,7 @@ export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, p
     }
   }
 
-  return await generateCatchupFeed(ctx, requesterDid, params, chronological)
+  return await generateCatchupFeed(ctx, requesterDid, params, shortname)
 }
 
 export async function updateSettings(ctx: AppContext, actorDid: string, settings: CatchupSettings) {
@@ -89,28 +91,41 @@ export async function updateSettings(ctx: AppContext, actorDid: string, settings
     .execute()
 }
 
-export async function generateCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams, chronological: boolean) {
+export async function generateCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams, shortname: string) {
   let t0 = performance.now()
 
   const settings = await getSettingsWithDefaults(ctx, requesterDid)
   debugLog(`Got settings at ${Math.round(performance.now() - t0)}`)
 
+  let cursor = params.cursor
   let cursorDate: Date
   let cursorCid: string
 
-  if (params.cursor) {
-    let strings = params.cursor.split(':')
+  if (!cursor && shortname == highlineChron.shortname) {
+    const feedState = await ctx.db
+      .selectFrom('feed_state')
+      .select('latest_seen_cursor')
+      .where('actor_did', '=', requesterDid)
+      .where('shortname', '=', highlineChron.shortname)
+      .executeTakeFirst()
+    cursor = feedState?.latest_seen_cursor
+  }
+
+  // TODO: ignore the cursor if it's too old
+  if (cursor) {
+    let strings = cursor.split(':')
     cursorDate = new Date(parseInt(strings[0], 10))
     cursorCid = strings.length == 2 ? strings[1] : ''
   } else {
     cursorDate = new Date()
-    if (chronological) {
+    if (shortname === highlineChron.shortname) {
       cursorDate.setHours(cursorDate.getHours() - 24)
+      cursorCid = "aaaaaaaaaaaaaa" // They all start with a metadata prefix
     } else {
       // What if there's some posts from the future... those count, right?
       cursorDate.setMinutes(cursorDate.getMinutes() + 10)
+      cursorCid = "zzzzzzzzzzzzzz" // They all start with a metadata prefix
     }
-    cursorCid = "zzzzzzzzzzzzzz" // They all start with a metadata prefix
   }
 
   let newsUri: string | undefined
@@ -139,7 +154,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   let postsPerAccount = settings.posts_per_account || DEFAULT_POSTS_PER_ACCOUNT
   let repostPercent = settings.repost_percent || DEFAULT_REPOST_PERCENT
   let numRecentPosts = Number(settings.num_recent_posts) || 0
-  if (chronological) {
+  if (shortname === highlineChron.shortname) {
     numRecentPosts = 0
   }
 
@@ -281,7 +296,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     .selectFrom('combined')
     .selectAll()
 
-  if (chronological) {
+  if (shortname === highlineChron.shortname) {
     // For chronological, we don't want to get all the way to current posts,
     // it would be too variable
     let cutOffDate = new Date()
@@ -311,43 +326,48 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     return { feed: NO_POSTS_PLACEHOLDER_FEED }
   }
 
-  let cursor: string | undefined
+  let newCursor: string | undefined
   const last = postResults.at(-1)!!
-  cursor = new Date(last.indexed_at).getTime().toString(10) + ':' + last.cid
+  newCursor = getCursor(last.indexed_at, last.cid)
 
   let numReposts = 0
   let feed: AppBskyFeedDefs.SkeletonFeedPost[] = postResults.map((row) => {
+    let feedEntry: AppBskyFeedDefs.SkeletonFeedPost = {
+      post: row.uri,
+      feedContext: shortname + "::" + getCursor(row.indexed_at, row.cid)
+    }
+
     if (row.post_uri) {
       numReposts++
-      return {
-        post: row.post_uri,
-        reason: {
-          $type: 'app.bsky.feed.defs#skeletonReasonRepost',
-          repost: row.uri
-        }
-      }
-    } else {
-      return {
-        post: row.uri,
+      feedEntry.reason = {
+        $type: 'app.bsky.feed.defs#skeletonReasonRepost',
+        repost: row.uri
       }
     }
+
+    return feedEntry
   })
 
   if (newsUri !== undefined) {
-    feed = [ { post: newsUri }].concat(feed)
+    let newsPost: AppBskyFeedDefs.SkeletonFeedPost = {
+      post: newsUri,
+      feedContext: shortname
+    }
+
+    feed = [ newsPost ].concat(feed)
 
     await ctx.db
       .updateTable('news_post')
       .where('actor_did', '=', requesterDid)
       .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
-      .set('cursor_when_shown', cursor)
+      .set('cursor_when_shown', newCursor)
       .execute()
   }
 
   debugLog(`Generated feed with ${feed.length} entries (${numReposts} reposts) at ${Math.round(performance.now() - t0)}, postsPerAccount: ${postsPerAccount}, repostPercent: ${repostPercent}`)
 
   return {
-    cursor,
+    cursor: newCursor,
     feed,
   }
 }

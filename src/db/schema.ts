@@ -13,6 +13,7 @@ export type DatabaseSchema = {
   job: Job
   repost: Repost,
   news_post: NewsPost
+  feed_state: FeedState
 }
 
 export type SubState = {
@@ -108,4 +109,10 @@ export type NewsPost = {
   post_uri: string
   created_at: Date
   cursor_when_shown: string
+}
+
+export type FeedState = {
+  actor_did: string
+  shortname: string
+  latest_seen_cursor: string
 }
