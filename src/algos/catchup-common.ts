@@ -323,7 +323,11 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     .execute()
 
   if (postResults.length === 0) {
-    return { feed: NO_POSTS_PLACEHOLDER_FEED }
+    if (shortname !== highlineChron.shortname) {
+      return { feed: NO_POSTS_PLACEHOLDER_FEED }
+    } else {
+      return { feed: [] }
+    }
   }
 
   let newCursor: string | undefined
