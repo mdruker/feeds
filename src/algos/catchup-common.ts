@@ -133,7 +133,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     .selectFrom('news_post')
     .selectAll()
     .where('actor_did', '=', requesterDid)
-    .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
+    .where('shortname', '=', shortname)
     .executeTakeFirst()
 
   if (newsPost !== undefined) {
@@ -141,13 +141,12 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
       await ctx.db
         .deleteFrom('news_post')
         .where('actor_did', '=', requesterDid)
-        .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
+        .where('shortname', '=', shortname)
         .execute()
     } else if (params.cursor === undefined && params.limit > 10) {
       // Only want to show news when it's a regular new load of the feed.
 
       newsUri = newsPost.post_uri
-      params.limit = params.limit - 1
     }
   }
 
@@ -358,12 +357,12 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
       feedContext: shortname
     }
 
-    feed = [ newsPost ].concat(feed)
+    feed = [ newsPost ].concat(feed.slice(0, params.limit - 1))
 
     await ctx.db
       .updateTable('news_post')
       .where('actor_did', '=', requesterDid)
-      .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
+      .where('shortname', '=', shortname)
       .set('cursor_when_shown', newCursor)
       .execute()
   }
