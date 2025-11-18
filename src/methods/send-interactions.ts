@@ -37,7 +37,6 @@ export default function (server: Server, ctx: AppContext) {
         }
       }
 
-      // TODO: maybe don't update if what's in the db is later than this one
       if (latestSeenHighlineChronCursor) {
         await ctx.db
           .insertInto('feed_state')
@@ -47,7 +46,10 @@ export default function (server: Server, ctx: AppContext) {
             latest_seen_cursor: latestSeenHighlineChronCursor,
           })
           .onDuplicateKeyUpdate({
-            latest_seen_cursor: latestSeenHighlineChronCursor
+            latest_seen_cursor: (eb) => eb.fn('GREATEST', [
+              eb.ref('latest_seen_cursor'),
+              eb.val(latestSeenHighlineChronCursor)
+            ])
           })
           .execute()
       }
