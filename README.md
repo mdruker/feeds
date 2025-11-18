@@ -4,7 +4,7 @@ This started as a fork from https://github.com/bluesky-social/feed-generator but
 
 ## Overview
 
-This powers two Highline feeds and an Only Links. The app is deployed on fly.io on one server with a separate MySQL database.
+This powers two Highline feeds and an Only Links feed. The app is deployed on fly.io on one server with a separate MySQL database.
 
 Feeds are published/unpublished with the scripts configured in `package.json`, e.g. `yarn publishStaging`.
 
