@@ -3,7 +3,7 @@ import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { debugLog } from '../lib/env'
 import * as AppBskyFeedDefs from '../lexicon/types/app/bsky/feed/defs'
 import { SelectQueryBuilder, sql } from 'kysely'
-import { NEW_ACTOR_PLACEHOLDER_FEED, NO_POSTS_PLACEHOLDER_FEED } from './helpers'
+import { HIGHLINE_CHRON_30_MIN_END_POST, NEW_ACTOR_PLACEHOLDER_FEED, NO_POSTS_PLACEHOLDER_FEED } from './helpers'
 import { populateActor } from '../util/actors'
 import * as highlineChron from './highline-chron'
 import { getCursor } from '../util/cursors'
@@ -365,6 +365,13 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
       .where('shortname', '=', shortname)
       .set('cursor_when_shown', newCursor)
       .execute()
+  }
+
+  if (shortname === highlineChron.shortname && feed.length < params.limit) {
+    feed = feed.concat({
+      post: HIGHLINE_CHRON_30_MIN_END_POST,
+      feedContext: shortname
+    })
   }
 
   debugLog(`Generated feed with ${feed.length} entries (${numReposts} reposts) at ${Math.round(performance.now() - t0)}, postsPerAccount: ${postsPerAccount}, repostPercent: ${repostPercent}`)

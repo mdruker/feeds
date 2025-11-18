@@ -10,8 +10,8 @@
     <!-- Login View -->
     <div id="login-view" style="display: none">
         <div class="card">
-            <h1>feeds.mdruker.app - Bluesky feed settings</h1>
-            <p>You need to log in with bsky.social to access your settings.</p>
+            <h1>Highline Bluesky Feeds - settings</h1>
+            <p>You need to identify your account through Bluesky or your PDS to access your settings.</p>
             <form id="login-form">
                 <input
                   id="login-handle"
@@ -20,7 +20,7 @@
                   placeholder="Enter your handle (eg alice.bsky.social)"
                   required
                 />
-                <button type="submit" class="primary-button">Log in</button>
+                <button type="submit" class="primary-button">Authenticate</button>
                 <p id="login-error" class="error"></p>
             </form>
         </div>
@@ -32,7 +32,7 @@
         <div class="card">
             <div class="header-content">
                 <div>
-                    <h1>feeds.mdruker.app - Bluesky feed settings</h1>
+                    <h1>Highline Bluesky Feeds - settings</h1>
                     <p class="user-info">Logged in as <span id="user-handle"></span></p>
                 </div>
                 <form id="logout-form">
@@ -63,7 +63,7 @@
 
                     <div class="compact-setting-group">
                         <h3>Reposts</h3>
-                        <p class="setting-description">The feed can include some reposts. Currently, these are the ones most reposted by your follows, but you should only see them once.</p>
+                        <p class="setting-description">The feed can include some reposts. Currently, these are the ones most reposted by your follows, but you should only see them once per day.</p>
                         <div class="compact-input-row">
                             <input type="number" id="repost_percent" name="repost_percent" min="0" max="50">
                             <span class="input-suffix">% of posts can be reposts</span>
@@ -71,7 +71,7 @@
                     </div>
 
                     <div class="compact-setting-group">
-                        <h3>Recent Posts <span class="experimental-label">Experimental</span></h3>
+                        <h3>Recent Posts (only for Highline ⬆️)</h3>
                         <p class="setting-description">Before switching to the most engaged posts, the feed can show you an unfiltered view of a few of the latest posts.</p>
                         <div class="compact-input-row">
                             <input type="number" id="num_recent_posts" name="num_recent_posts" min="0" max="1000">
@@ -86,7 +86,7 @@
 
         <div class="card">
             <h2>Posts Per Account</h2>
-            <p class="setting-description">The Highline (formerly Catch Up) feed shows the most engaged posts per account. How many per account is based on a default combined with a possible override. E.g. a default of 3 will show you at most 3 posts per account, and if you add an override for a specific account you follow of -2, it'll only show you at most 1 from that account.</p>
+            <p class="setting-description">The Highline feeds show the most engaged posts per account. How many per account is based on a default combined with a possible override. E.g. a default of 3 will show you at most 3 posts per account, and if you add an override for a specific account you follow of -2, it'll only show you at most 1 from that account.</p>
 
             <div class="default-setting">
                 <div class="setting-row">
