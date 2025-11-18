@@ -322,10 +322,15 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     .execute()
 
   if (postResults.length === 0) {
-    if (shortname !== highlineChron.shortname) {
-      return { feed: NO_POSTS_PLACEHOLDER_FEED }
+    if (shortname === highlineChron.shortname) {
+      return {
+        feed: [{
+          post: HIGHLINE_CHRON_30_MIN_END_POST,
+          feedContext: shortname
+        }]
+      }
     } else {
-      return { feed: [] }
+      return { feed: NO_POSTS_PLACEHOLDER_FEED }
     }
   }
 
