@@ -4,7 +4,7 @@ This started as a fork from https://github.com/bluesky-social/feed-generator but
 
 ## Overview
 
-This powers two feeds - Highline (formerly Catch Up) and Only Links. The app is deployed on fly.io on one server with a separate MySQL database.
+This powers two Highline feeds and an Only Links. The app is deployed on fly.io on one server with a separate MySQL database.
 
 Feeds are published/unpublished with the scripts configured in `package.json`, e.g. `yarn publishStaging`.
 
@@ -15,6 +15,7 @@ Features:
 * Records and updates engagement counts for posts (additions only, no removals)
 * Records accounts that use the feed
 * Records and updates following relationships for accounts that use the feed
+* Has a feature to show a news post at the top of a feed
 * Has a database-backed job queue to do asynchronous work
 * Per-user settings and an authenticated web page to update them
 * Consumes data from the Jetstream and processes data in batches
