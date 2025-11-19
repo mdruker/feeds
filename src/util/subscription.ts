@@ -8,7 +8,7 @@ import { sql } from 'kysely'
 
 const semaphore = new Semaphore(128)
 
-const JETSTREAM_ENDPOINT = 'wss://jetstream2.us-east.bsky.network/subscribe'
+const JETSTREAM_ENDPOINT = 'wss://jetstream1.us-east.bsky.network/subscribe'
 
 const BATCH_SIZE = 10000
 const MAX_WAIT_MS = 10000
