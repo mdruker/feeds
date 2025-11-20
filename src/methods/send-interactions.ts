@@ -5,6 +5,7 @@ import { AtUri } from '@atproto/syntax'
 import { sql } from 'kysely'
 import { debugLog } from '../lib/env'
 import * as highlineChron from '../algos/highline-chron'
+import { isCursor } from '../util/cursors'
 
 export default function (server: Server, ctx: AppContext) {
   server.app.bsky.feed.sendInteractions(async ({ input, req }) => {
@@ -73,14 +74,5 @@ export default function (server: Server, ctx: AppContext) {
       .where('source_did', '=', requesterDid)
       .where('target_did', '=', targetDid)
       .execute()
-  }
-
-  function isCursor(cursor: string) {
-    let strings = cursor.split(':')
-    if (strings.length !== 2) {
-      return false
-    }
-    return /^[0-9]+$/.test(strings[0])
-      && /^[a-zA-Z0-9]+$/.test(strings[1]);
   }
 }

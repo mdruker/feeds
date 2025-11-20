@@ -6,7 +6,7 @@ import { SelectQueryBuilder, sql } from 'kysely'
 import { HIGHLINE_CHRON_30_MIN_END_POST, NEW_ACTOR_PLACEHOLDER_FEED, NO_POSTS_PLACEHOLDER_FEED } from './helpers'
 import { populateActor } from '../util/actors'
 import * as highlineChron from './highline-chron'
-import { getCursor } from '../util/cursors'
+import { getCursor, isCursor } from '../util/cursors'
 
 export type CatchupSettings = {
   include_replies: boolean | undefined
@@ -111,8 +111,8 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
     cursor = feedState?.latest_seen_cursor
   }
 
-  // TODO: ignore the cursor if it's too old or malformed
-  if (cursor) {
+  if (cursor && isCursor(cursor)) {
+    // TODO: ignore the cursor if it's too old
     let strings = cursor.split(':')
     cursorDate = new Date(parseInt(strings[0], 10))
     cursorCid = strings.length == 2 ? strings[1] : ''
@@ -373,6 +373,7 @@ export async function generateCatchupFeed(ctx: AppContext, requesterDid: string,
   }
 
   if (shortname === highlineChron.shortname && feed.length < params.limit) {
+    newCursor = undefined
     feed = feed.concat({
       post: HIGHLINE_CHRON_30_MIN_END_POST,
       feedContext: shortname
