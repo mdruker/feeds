@@ -173,7 +173,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     debugLog(`Inserted new posts in db at ${Math.round(performance.now() - t0)}`)
 
     let postsToUpdateReplyCounts = ops.posts.creates
-      .map((x) => x.record.reply?.parent.uri)
+      .map((x) => x.record.reply?.parent?.uri)
       .filter((x) => x != null)
     let postsToLike = ops.likes.creates
       .map((x) => x.record.subject.uri)
