@@ -1,7 +1,7 @@
 import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../config'
 import {
-  ALL_CAUGHT_UP_POST,
+  ALL_CAUGHT_UP_POST, LIKE_TO_JUMP_TO_30_MIN_AGO_POST,
   LIKE_TO_JUMP_TO_PRESENT_POST,
 } from './helpers'
 import { getCursor, isCursor } from '../util/cursors'
@@ -118,10 +118,14 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
     return feedEntry
   })
 
-  if (cursor === undefined) {
+  // Show a jump to recent posts option at the top if we're showing posts at
+  // least an hour old.
+  let cutOffForShowingJumpPost = new Date()
+  cutOffForShowingJumpPost.setHours(cutOffForShowingJumpPost.getHours() - 1)
+  if (cursor === undefined && new Date(last.indexed_at).toISOString() < cutOffForShowingJumpPost.toISOString()) {
     let jumpToPresentPost: AppBskyFeedDefs.SkeletonFeedPost = {
-      post: LIKE_TO_JUMP_TO_PRESENT_POST,
-      feedContext: shortname
+      post: LIKE_TO_JUMP_TO_30_MIN_AGO_POST,
+      feedContext: shortname + "::"
     }
 
     feed = [ jumpToPresentPost ].concat(feed.slice(0, params.limit - 1))
@@ -131,7 +135,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
     newCursor = undefined
     feed = feed.concat({
       post: ALL_CAUGHT_UP_POST,
-      feedContext: shortname
+      feedContext: shortname + "::"
     })
   }
 

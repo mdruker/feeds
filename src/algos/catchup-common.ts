@@ -296,7 +296,7 @@ export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, p
       return {
         feed: [{
           post: HIGHLINE_CHRON_30_MIN_END_POST,
-          feedContext: shortname
+          feedContext: shortname + "::"
         }]
       }
     } else {
@@ -329,7 +329,7 @@ export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, p
   if (newsUri !== undefined) {
     let newsPost: AppBskyFeedDefs.SkeletonFeedPost = {
       post: newsUri,
-      feedContext: shortname
+      feedContext: shortname + "::"
     }
 
     feed = [ newsPost ].concat(feed.slice(0, params.limit - 1))
@@ -346,7 +346,7 @@ export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, p
     newCursor = undefined
     feed = feed.concat({
       post: HIGHLINE_CHRON_30_MIN_END_POST,
-      feedContext: shortname
+      feedContext: shortname + "::"
     })
   }
 

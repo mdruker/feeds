@@ -8,7 +8,7 @@ import * as highlineChron from '../algos/highline-chron'
 import * as followingChron from '../algos/following-chron'
 import { getCursor, isCursor } from '../util/cursors'
 import { hasAdminPermission } from '../web/utils'
-import { LIKE_TO_JUMP_TO_PRESENT_POST } from '../algos/helpers'
+import { LIKE_TO_JUMP_TO_30_MIN_AGO_POST } from '../algos/helpers'
 
 export default function (server: Server, ctx: AppContext) {
   async function updateCursor(requesterDid: string, shortname: string, latestCursor: string) {
@@ -71,8 +71,12 @@ export default function (server: Server, ctx: AppContext) {
           }
         } else if (interaction.event === 'app.bsky.feed.defs#interactionLike'
           && interaction.feedContext?.startsWith(followingChron.shortname + "::")
-          && interaction.item === LIKE_TO_JUMP_TO_PRESENT_POST) {
+          && interaction.item === LIKE_TO_JUMP_TO_30_MIN_AGO_POST) {
+          if (isAdmin) {
+            console.log(`Jumping to present`)
+          }
           let cursorDate = new Date()
+          cursorDate.setMinutes(cursorDate.getMinutes() - 30)
           let cursorCid = "aaaaaaaaaaaaaa"
           latestSeenFollowingChronCursor = getCursor(cursorDate, cursorCid)
         }
