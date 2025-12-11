@@ -1,53 +1,13 @@
 import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { AppContext } from '../config'
-import { populateActor } from '../util/actors'
 import { AtUri } from '@atproto/syntax'
 import { PostProperties } from '../util/properties'
-import { NEW_ACTOR_PLACEHOLDER_FEED, NO_POSTS_PLACEHOLDER_FEED } from './helpers'
+import { NO_POSTS_PLACEHOLDER_FEED } from './helpers'
 
 // max 15 chars
 export const shortname = 'only-links'
 
 export const handler = async (ctx: AppContext, params: QueryParams, requesterDid: string) => {
-  // If we don't know the actor, fetch their follows
-  let actor = await ctx.db
-    .selectFrom('actor')
-    .selectAll()
-    .where('did', '=', requesterDid)
-    .executeTakeFirst()
-  if (actor === undefined) {
-    console.log(`Did not find ${requesterDid} in the db, starting to populate`)
-
-    // Enqueue the job to populate the actor
-    await populateActor(ctx.db, ctx.didResolver, ctx.jobManager, requesterDid, true)
-
-    // If the job finishes quickly enough, we can return the feed immediately.
-    await new Promise(resolve => setTimeout(resolve, 5000))
-    actor = await ctx.db
-      .selectFrom('actor')
-      .selectAll()
-      .where('did', '=', requesterDid)
-      .executeTakeFirst()
-
-    if (actor === undefined) {
-      console.log(`Actor ${requesterDid} still not found after waiting, returning placeholder`)
-      return { feed: NEW_ACTOR_PLACEHOLDER_FEED }
-    }
-  }
-
-  // Fetch all of actor's follows from the db
-  let follows = await ctx.db
-    .selectFrom('follow')
-    .selectAll()
-    .where('source_did', '=', requesterDid)
-    .execute()
-
-  if (follows.length == 0) {
-    return {
-      feed: [],
-    }
-  }
-
   let posts = await ctx.db
     .selectFrom('post')
     .innerJoin(

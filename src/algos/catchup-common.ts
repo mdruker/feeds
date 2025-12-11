@@ -41,36 +41,6 @@ export async function getSettingsWithDefaults(ctx: AppContext, requesterDid: str
   }
 }
 
-export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams, shortname: string) {
-  // If we don't know the actor, fetch their follows
-  let actor = await ctx.db
-    .selectFrom('actor')
-    .selectAll()
-    .where('did', '=', requesterDid)
-    .executeTakeFirst()
-  if (actor === undefined) {
-    console.log(`Did not find ${requesterDid} in the db, starting to populate`)
-
-    // Enqueue the job to populate the actor
-    await populateActor(ctx.db, ctx.didResolver, ctx.jobManager, requesterDid, true)
-
-    // If the job finishes quickly enough, we can return the feed immediately.
-    await new Promise(resolve => setTimeout(resolve, 5000))
-    actor = await ctx.db
-      .selectFrom('actor')
-      .selectAll()
-      .where('did', '=', requesterDid)
-      .executeTakeFirst()
-
-    if (actor === undefined) {
-      console.log(`Actor ${requesterDid} still not found after waiting, returning placeholder`)
-      return { feed: NEW_ACTOR_PLACEHOLDER_FEED }
-    }
-  }
-
-  return await generateCatchupFeed(ctx, requesterDid, params, shortname)
-}
-
 export async function updateSettings(ctx: AppContext, actorDid: string, settings: CatchupSettings) {
   let settingsJson = JSON.stringify(settings)
 
@@ -91,7 +61,7 @@ export async function updateSettings(ctx: AppContext, actorDid: string, settings
     .execute()
 }
 
-export async function generateCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams, shortname: string) {
+export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, params: QueryParams, shortname: string) {
   let t0 = performance.now()
 
   const settings = await getSettingsWithDefaults(ctx, requesterDid)

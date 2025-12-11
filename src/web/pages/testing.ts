@@ -1,13 +1,11 @@
 import express from 'express'
 import { AppContext } from '../../config'
-import { handler } from '../../algos/catchup'
 import { QueryParams as GetPostsParams } from '../../lexicon/types/app/bsky/feed/getPosts'
 import { QueryParams as ResolveHandleParams } from '../../lexicon/types/com/atproto/identity/resolveHandle'
 import { AppBskyFeedPost, AtpAgent } from '@atproto/api'
-import { Post } from '../../db/schema'
 import { sessionHasAdminPermission } from '../utils'
-import algos from '../../algos'
 import { Database } from '../../db/database'
+import { getFeedSkeleton } from '../../methods/get-feed-skeleton'
 
 const makeRouter = (ctx: AppContext) => {
   const router = express.Router()
@@ -121,12 +119,7 @@ const makeRouter = (ctx: AppContext) => {
 
       let t0 = performance.now()
 
-      const algo = algos[_req.params.shortname]
-      if (!algo) {
-        return next(new Error())
-      }
-
-      let feedResponse = await algo(ctx, {feed: _req.params.shortname, limit: 30}, resolveHandleResponse.data.did)
+      let feedResponse = await getFeedSkeleton(ctx, resolveHandleResponse.data.did, _req.params.shortname, {feed: _req.params.shortname, limit: 30})
       let postUris = feedResponse.feed.map((x) => x.post)
       let t1 = performance.now()
       console.log(`Testing: generated the feed for ${_req.params.handle} in ${Math.round(t1-t0)} ms`)
