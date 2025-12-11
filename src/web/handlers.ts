@@ -329,7 +329,7 @@ export const webRouter = (ctx: AppContext) => {
         const url = await ctx.oauthClient.authorize(handle, {
           scope: 'atproto',
         })
-        return res.redirect(url.toString())
+        return res.json({ url: url.toString(), success: true })
       } catch (err) {
         console.error({ err }, 'oauth authorize failed')
         // TODO: surface error

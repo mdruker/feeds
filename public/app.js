@@ -121,10 +121,10 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
       body: JSON.stringify({ handle })
     })
 
-    if (response.redirected) {
-      window.location.href = response.url
+    const data = await response.json()
+    if (data.url) {
+      window.location.href = data.url
     } else {
-      const data = await response.json()
       document.getElementById('login-error').textContent = data.error || 'Login failed'
     }
   } catch (error) {
