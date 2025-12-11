@@ -119,10 +119,10 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
   })
 
   // Show a jump to recent posts option at the top if we're showing posts at
-  // least an hour old.
+  // least an hour old and this was the first page requested this time.
   let cutOffForShowingJumpPost = new Date()
   cutOffForShowingJumpPost.setHours(cutOffForShowingJumpPost.getHours() - 1)
-  if (cursor === undefined && new Date(last.indexed_at).toISOString() < cutOffForShowingJumpPost.toISOString()) {
+  if (params.cursor === undefined && new Date(last.indexed_at) < cutOffForShowingJumpPost) {
     let jumpToPresentPost: AppBskyFeedDefs.SkeletonFeedPost = {
       post: LIKE_TO_JUMP_TO_30_MIN_AGO_POST,
       feedContext: shortname + "::"
