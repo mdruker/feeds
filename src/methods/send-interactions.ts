@@ -35,7 +35,6 @@ export default function (server: Server, ctx: AppContext) {
         ctx.cfg.serviceDid,
         ctx.didResolver,
       )
-
       const isAdmin = await hasAdminPermission(ctx, requesterDid)
 
       const seenCursors = new Map<string, string[]>([
@@ -61,7 +60,7 @@ export default function (server: Server, ctx: AppContext) {
           let cursorDate = new Date()
           cursorDate.setMinutes(cursorDate.getMinutes() - 30)
           let cursorCid = "aaaaaaaaaaaaaa"
-          seenCursors[followingChron.shortname].push(getCursor(cursorDate, cursorCid))
+          seenCursors.get(followingChron.shortname)!!.push(getCursor(cursorDate, cursorCid))
         }
       }
 
@@ -72,8 +71,12 @@ export default function (server: Server, ctx: AppContext) {
         .forEach(interaction => {
           if (interaction.feedContext !== undefined) {
             const split = interaction.feedContext.split("::")
-            if (split.length === 2 && seenCursors[split[0]] !== undefined) {
-              seenCursors[split[0]].push(split[1])
+            console.log(`split: ${split}`)
+            if (split.length >= 2) {
+              const cursors = seenCursors.get(split[0])
+              if (cursors) {
+                cursors.push(split[1])
+              }
             }
           }
         })
