@@ -38,6 +38,8 @@ export default function (server: Server, ctx: AppContext) {
       let latestSeenHighlineChronCursor: string | undefined
       let latestSeenFollowingChronCursor: string | undefined
 
+      const isAdmin = await hasAdminPermission(ctx, requesterDid)
+
       for (let interaction of input.body.interactions) {
         if (interaction.item === undefined) {
           continue
@@ -71,6 +73,35 @@ export default function (server: Server, ctx: AppContext) {
           cursorDate.setMinutes(cursorDate.getMinutes() - 30)
           let cursorCid = "aaaaaaaaaaaaaa"
           latestSeenFollowingChronCursor = getCursor(cursorDate, cursorCid)
+        }
+      }
+
+      const seenCursors = new Map<string, string[]>([
+        [followingChron.shortname, []],
+        [highlineChron.shortname, []],
+      ])
+
+      input.body.interactions
+        .filter(interaction => interaction.item !== undefined
+          && interaction.event === 'app.bsky.feed.defs#interactionSeen'
+        )
+        .forEach(interaction => {
+          if (interaction.feedContext !== undefined) {
+            const split = interaction.feedContext.split("::")
+            if (split.length === 2 && seenCursors[split[0]] !== undefined) {
+              seenCursors[split[0]].push(split[1])
+            }
+          }
+        })
+
+      for (const [shortname, cursors] of seenCursors) {
+        if (cursors.length > 0) {
+          cursors.sort();
+          cursors.reverse();
+          // await updateCursor(requesterDid, shortname, cursors[0])
+          if (shortname == highlineChron.shortname && cursors[0] !== latestSeenHighlineChronCursor) {
+            console.log(`Mismatch in cursor updates: ${cursors[0]} vs ${latestSeenHighlineChronCursor}`)
+          }
         }
       }
 
