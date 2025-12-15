@@ -60,7 +60,7 @@ export default function (server: Server, ctx: AppContext) {
           let cursorDate = new Date()
           cursorDate.setMinutes(cursorDate.getMinutes() - 30)
           let cursorCid = "aaaaaaaaaaaaaa"
-          seenCursors.get(followingChron.shortname)!!.push(getCursor(cursorDate, cursorCid))
+          await updateCursor(requesterDid, followingChron.shortname, getCursor(cursorDate, cursorCid))
         }
       }
 
@@ -71,7 +71,6 @@ export default function (server: Server, ctx: AppContext) {
         .forEach(interaction => {
           if (interaction.feedContext !== undefined) {
             const split = interaction.feedContext.split("::")
-            console.log(`split: ${split}`)
             if (split.length >= 2) {
               const cursors = seenCursors.get(split[0])
               if (cursors) {
@@ -85,7 +84,14 @@ export default function (server: Server, ctx: AppContext) {
         if (cursors.length > 0) {
           cursors.sort();
           cursors.reverse();
-          await updateCursor(requesterDid, shortname, cursors[0])
+
+          if (isAdmin) {
+            if (cursors.length > 2) {
+              await updateCursor(requesterDid, shortname, cursors[2])
+            }
+          } else {
+            await updateCursor(requesterDid, shortname, cursors[0])
+          }
         }
       }
 
