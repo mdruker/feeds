@@ -38,17 +38,12 @@ export default function (server: Server, ctx: AppContext) {
       let latestSeenHighlineChronCursor: string | undefined
       let latestSeenFollowingChronCursor: string | undefined
 
-      const isAdmin = await hasAdminPermission(ctx, requesterDid)
-
       for (let interaction of input.body.interactions) {
         if (interaction.item === undefined) {
           continue
         }
 
         debugLog('Processing interaction:', interaction.item, 'Event:', interaction.event, 'Feed context:', interaction.feedContext)
-        if (isAdmin) {
-          console.log('Processing interaction:', interaction.item, 'Event:', interaction.event, 'Feed context:', interaction.feedContext)
-        }
 
         const postUri = new AtUri(interaction.item)
         if (interaction.event === 'app.bsky.feed.defs#requestLess') {
@@ -72,9 +67,6 @@ export default function (server: Server, ctx: AppContext) {
         } else if (interaction.event === 'app.bsky.feed.defs#interactionLike'
           && interaction.feedContext?.startsWith(followingChron.shortname + "::")
           && interaction.item === LIKE_TO_JUMP_TO_30_MIN_AGO_POST) {
-          if (isAdmin) {
-            console.log(`Jumping to present`)
-          }
           let cursorDate = new Date()
           cursorDate.setMinutes(cursorDate.getMinutes() - 30)
           let cursorCid = "aaaaaaaaaaaaaa"
