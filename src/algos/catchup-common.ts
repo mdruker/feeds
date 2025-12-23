@@ -310,19 +310,23 @@ export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, p
 
   let numReposts = 0
   let feed: AppBskyFeedDefs.SkeletonFeedPost[] = postResults.map((row) => {
-    let feedEntry: AppBskyFeedDefs.SkeletonFeedPost = {
-      post: row.uri,
-      feedContext: shortname + "::" + getCursor(row.indexed_at, row.cid)
-    }
-
+    let feedEntry: AppBskyFeedDefs.SkeletonFeedPost
     if (row.post_uri) {
       numReposts++
-      feedEntry.reason = {
-        $type: 'app.bsky.feed.defs#skeletonReasonRepost',
-        repost: row.uri
+      feedEntry = {
+        post: row.post_uri,
+        feedContext: shortname + "::" + getCursor(row.indexed_at, row.cid),
+        reason: {
+          $type: 'app.bsky.feed.defs#skeletonReasonRepost',
+          repost: row.uri
+        }
+      }
+    } else {
+      feedEntry = {
+        post: row.uri,
+        feedContext: shortname + "::" + getCursor(row.indexed_at, row.cid)
       }
     }
-
     return feedEntry
   })
 
@@ -350,7 +354,7 @@ export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, p
     })
   }
 
-  debugLog(`Generated feed with ${feed.length} entries (${numReposts} reposts) at ${Math.round(performance.now() - t0)}, postsPerAccount: ${postsPerAccount}, repostPercent: ${repostPercent}`)
+  console.log(`Generated feed with ${feed.length} entries (${numReposts} reposts) at ${Math.round(performance.now() - t0)}, postsPerAccount: ${postsPerAccount}, repostPercent: ${repostPercent}`)
 
   return {
     cursor: newCursor,
