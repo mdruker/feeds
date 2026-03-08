@@ -96,9 +96,7 @@ export default function (server: Server, ctx: AppContext) {
         }
       }
 
-      if (isAdmin) {
-        await trackSeenHighlinePosts(requesterDid, input.body.interactions)
-      }
+      await trackSeenHighlinePosts(requesterDid, input.body.interactions)
 
       return {
         encoding: 'application/json',
