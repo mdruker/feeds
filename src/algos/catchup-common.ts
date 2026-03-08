@@ -3,10 +3,10 @@ import { QueryParams } from '../lexicon/types/app/bsky/feed/getFeedSkeleton'
 import { debugLog } from '../lib/env'
 import * as AppBskyFeedDefs from '../lexicon/types/app/bsky/feed/defs'
 import { SelectQueryBuilder, sql } from 'kysely'
-import { HIGHLINE_CHRON_30_MIN_END_POST, NEW_ACTOR_PLACEHOLDER_FEED, NO_POSTS_PLACEHOLDER_FEED } from './helpers'
-import { populateActor } from '../util/actors'
+import { HIGHLINE_CHRON_30_MIN_END_POST, NO_POSTS_PLACEHOLDER_FEED } from './helpers'
 import * as highlineChron from './highline-chron'
 import { getCursor, isCursor } from '../util/cursors'
+import { hasAdminPermission } from '../web/utils'
 
 export type CatchupSettings = {
   include_replies: boolean | undefined
@@ -66,6 +66,8 @@ export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, p
 
   const settings = await getSettingsWithDefaults(ctx, requesterDid)
   debugLog(`Got settings at ${Math.round(performance.now() - t0)}`)
+  
+  const isAdmin = await hasAdminPermission(ctx, requesterDid)
 
   let cursor = params.cursor
   let cursorDate: Date
@@ -264,6 +266,25 @@ export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, p
     }))
     .selectFrom('combined')
     .selectAll()
+
+  // Trying out filtering posts that have been already seen
+  if (isAdmin) {
+    const cutOffDate = new Date()
+    cutOffDate.setHours(cutOffDate.getHours() - 24)
+
+    queryBuilder = queryBuilder
+      .where((eb) => eb.not(eb.exists(
+        eb.selectFrom('seen_post')
+          .select('post_uri')
+          .where('actor_did', '=', requesterDid)
+          .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
+          .where('created_at', '>', cutOffDate)
+          .where((eb) => eb.or([
+            eb('seen_post.post_uri', '=', eb.ref('combined.uri')),
+            eb('seen_post.post_uri', '=', eb.ref('combined.post_uri'))
+          ]))
+      )))
+  }
 
   if (shortname === highlineChron.shortname) {
     // For chronological, we don't want to get all the way to current posts,

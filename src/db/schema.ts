@@ -14,6 +14,7 @@ export type DatabaseSchema = {
   repost: Repost,
   news_post: NewsPost
   feed_state: FeedState
+  seen_post: SeenPost
 }
 
 export type SubState = {
@@ -115,4 +116,11 @@ export type FeedState = {
   actor_did: string
   shortname: string
   latest_seen_cursor: string
+}
+
+export type SeenPost = {
+  actor_did: string
+  shortname: string
+  post_uri: string
+  created_at: Date
 }

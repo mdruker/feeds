@@ -212,3 +212,28 @@ migrations['003'] = {
       .execute()
   },
 }
+
+migrations['004'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('seen_post')
+      .addColumn('actor_did', 'varchar(255)', (col) => col.notNull())
+      .addColumn('shortname', 'varchar(255)', (col) => col.notNull())
+      .addColumn('post_uri', 'varchar(255)', (col) => col.notNull())
+      .addColumn('created_at', 'datetime', (col) => col.notNull())
+      .execute()
+
+    await db.schema
+      .createIndex('unq_seen_post_actor_did_shortname_post_uri')
+      .on('seen_post')
+      .columns(['actor_did', 'shortname', 'post_uri'])
+      .unique()
+      .execute()
+
+    await db.schema
+      .createIndex('idx_seen_post_created_at')
+      .on('seen_post')
+      .column('created_at')
+      .execute()
+  },
+}

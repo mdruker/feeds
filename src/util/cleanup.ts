@@ -26,6 +26,12 @@ export class CleanupService {
       .limit(10000)
       .execute()
 
+    await this.db
+      .deleteFrom('seen_post')
+      .where('created_at', '<', cutOffDate)
+      .limit(10000)
+      .execute()
+
     debugLog(`Completed cleanup task in ${Math.round(performance.now() - t0)}`)
   }
 

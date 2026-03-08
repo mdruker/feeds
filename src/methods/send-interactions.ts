@@ -6,7 +6,8 @@ import { sql } from 'kysely'
 import { debugLog } from '../lib/env'
 import * as highlineChron from '../algos/highline-chron'
 import * as followingChron from '../algos/following-chron'
-import { getCursor, isCursor } from '../util/cursors'
+import * as catchup from '../algos/catchup'
+import { getCursor } from '../util/cursors'
 import { hasAdminPermission } from '../web/utils'
 import { LIKE_TO_JUMP_TO_30_MIN_AGO_POST } from '../algos/helpers'
 
@@ -37,11 +38,6 @@ export default function (server: Server, ctx: AppContext) {
       )
       const isAdmin = await hasAdminPermission(ctx, requesterDid)
 
-      const seenCursors = new Map<string, string[]>([
-        [followingChron.shortname, []],
-        [highlineChron.shortname, []],
-      ])
-
       for (let interaction of input.body.interactions) {
         if (interaction.item === undefined) {
           continue
@@ -63,6 +59,11 @@ export default function (server: Server, ctx: AppContext) {
           await updateCursor(requesterDid, followingChron.shortname, getCursor(cursorDate, cursorCid))
         }
       }
+
+      const seenCursors = new Map<string, string[]>([
+        [followingChron.shortname, []],
+        [highlineChron.shortname, []],
+      ])
 
       input.body.interactions
         .filter(interaction => interaction.item !== undefined
@@ -95,6 +96,10 @@ export default function (server: Server, ctx: AppContext) {
         }
       }
 
+      if (isAdmin) {
+        await trackSeenHighlinePosts(requesterDid, input.body.interactions)
+      }
+
       return {
         encoding: 'application/json',
         body: {},
@@ -114,5 +119,36 @@ export default function (server: Server, ctx: AppContext) {
       .where('source_did', '=', requesterDid)
       .where('target_did', '=', targetDid)
       .execute()
+  }
+
+  async function trackSeenHighlinePosts(requesterDid: string, interactions: any[]) {
+    const now = new Date()
+    const seenPosts = interactions
+      .filter(interaction =>
+        interaction.item !== undefined &&
+        interaction.event === 'app.bsky.feed.defs#interactionSeen' &&
+        (interaction.feedContext?.startsWith(catchup.shortname + '::') ||
+          interaction.feedContext?.startsWith(highlineChron.shortname + '::'))
+      )
+      .map(interaction => interaction.item!!)
+      .filter(Boolean)
+      .map(postUri => ({
+        actor_did: requesterDid,
+        shortname: catchup.shortname,
+        post_uri: postUri,
+        created_at: now,
+      }))
+
+    if (seenPosts.length === 0) return
+
+    await ctx.db
+      .insertInto('seen_post')
+      .values(seenPosts)
+      .onDuplicateKeyUpdate({
+        created_at: (eb) => eb.val(now),
+      })
+      .execute()
+
+    debugLog(`Tracked ${seenPosts.length} seen Highline posts for ${requesterDid}`)
   }
 }
