@@ -72,7 +72,15 @@
                 <h3>Create News Post</h3>
                 <p>Insert a news post for all current users in a specific feed</p>
                 <form id="news-post-form">
-                    <input type="text" id="news-post-uri" name="post_uri" placeholder="Post URI (at://...)" required>
+                    <div class="url-conversion-section">
+                        <label for="news-post-url">Bluesky Post URL (optional):</label>
+                        <input type="text" id="news-post-url" name="post_url" placeholder="https://bsky.app/profile/alice.bsky.social/post/abc123...">
+                        <small class="help-text">Paste a Bluesky post URL to automatically convert to AT URI</small>
+                    </div>
+                    <div class="uri-section">
+                        <label for="news-post-uri">AT Protocol URI:</label>
+                        <input type="text" id="news-post-uri" name="post_uri" placeholder="at://did:plc:xyz.../app.bsky.feed.post/abc123..." required>
+                    </div>
                     <select id="news-shortname" name="shortname" required>
                         <option value="">Select Feed</option>
                         <option value="catchup">Highline ⬆️</option>

@@ -33,6 +33,41 @@ function showToast(message, isError = false) {
   }, 3000);
 }
 
+// Convert Bluesky post URL to AT Protocol URI
+async function convertPostUrlToUri(url) {
+  // Parse Bluesky URL format: https://bsky.app/profile/handle/post/rkey
+  const urlPattern = /https:\/\/bsky\.app\/profile\/([^\/]+)\/post\/([^\/\?]+)/
+  const match = url.match(urlPattern)
+  
+  if (!match) {
+    throw new Error('Invalid Bluesky post URL format')
+  }
+  
+  const [, handle, rkey] = match
+  
+  try {
+    // Resolve handle to DID
+    const resolveResponse = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`)
+    
+    if (!resolveResponse.ok) {
+      throw new Error('Could not resolve handle to DID')
+    }
+    
+    const resolveData = await resolveResponse.json()
+    const did = resolveData.did
+    
+    if (!did) {
+      throw new Error('No DID found for handle')
+    }
+    
+    // Construct AT URI
+    const atUri = `at://${did}/app.bsky.feed.post/${rkey}`
+    return atUri
+  } catch (error) {
+    throw new Error(`Failed to convert URL: ${error.message}`)
+  }
+}
+
 // Timeline form handler
 document.getElementById('timeline-form').addEventListener('submit', async (e) => {
   e.preventDefault()
@@ -162,6 +197,54 @@ document.getElementById('news-post-form').addEventListener('submit', async (e) =
     console.error('Error creating news post:', error)
     showToast('Error creating news post', true)
   }
+})
+
+// Handle URL to URI conversion
+let conversionTimeout = null
+
+document.getElementById('news-post-url').addEventListener('input', async (e) => {
+  const url = e.target.value.trim()
+  const uriField = document.getElementById('news-post-uri')
+  
+  // Clear any existing timeout
+  if (conversionTimeout) {
+    clearTimeout(conversionTimeout)
+  }
+  
+  // Clear URI field if URL is empty
+  if (!url) {
+    uriField.value = ''
+    return
+  }
+  
+  // Basic URL format check
+  if (!url.startsWith('https://bsky.app/profile/') || !url.includes('/post/')) {
+    return
+  }
+  
+  // Show loading state
+  uriField.value = 'Converting...'
+  uriField.style.backgroundColor = '#f8f9fa'
+  
+  // Debounced conversion after 500ms
+  conversionTimeout = setTimeout(async () => {
+    try {
+      const atUri = await convertPostUrlToUri(url)
+      uriField.value = atUri
+      uriField.style.backgroundColor = '#e8f5e8' // Light green
+      showToast('URL converted to AT URI successfully')
+    } catch (error) {
+      console.warn('URL conversion failed:', error)
+      uriField.value = ''
+      uriField.style.backgroundColor = '#ffe6e6' // Light red
+      showToast(`Conversion failed: ${error.message}`, true)
+    }
+  }, 500)
+})
+
+// Reset styling when URI field is manually edited
+document.getElementById('news-post-uri').addEventListener('input', (e) => {
+  e.target.style.backgroundColor = ''
 })
 
 // Load initial data
