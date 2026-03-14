@@ -352,7 +352,7 @@ export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, p
   if (newsUri !== undefined) {
     let newsPost: AppBskyFeedDefs.SkeletonFeedPost = {
       post: newsUri,
-      feedContext: shortname + "::"
+      feedContext: shortname + "::news"
     }
 
     feed = [ newsPost ].concat(feed.slice(0, params.limit - 1))

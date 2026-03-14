@@ -72,7 +72,7 @@ export default function (server: Server, ctx: AppContext) {
         .forEach(interaction => {
           if (interaction.feedContext !== undefined) {
             const split = interaction.feedContext.split("::")
-            if (split.length >= 2) {
+            if (split.length >= 2 && split[2] !== 'news') {
               const cursors = seenCursors.get(split[0])
               if (cursors) {
                 cursors.push(split[1])
@@ -96,6 +96,8 @@ export default function (server: Server, ctx: AppContext) {
         }
       }
 
+      await removeSeenNewsPosts(requesterDid, input.body.interactions)
+
       await trackSeenHighlinePosts(requesterDid, input.body.interactions)
 
       return {
@@ -117,6 +119,35 @@ export default function (server: Server, ctx: AppContext) {
       .where('source_did', '=', requesterDid)
       .where('target_did', '=', targetDid)
       .execute()
+  }
+
+  async function removeSeenNewsPosts(requesterDid: string, interactions: any[]) {
+    // Remove seen news posts by URI, regardless of which feed they were seen on.
+
+    const seenNewsUris = interactions
+      .filter(interaction =>
+        interaction.item !== undefined &&
+        interaction.event === 'app.bsky.feed.defs#interactionSeen'
+      )
+      .filter(interaction => {
+        if (interaction.feedContext !== undefined) {
+          const split = interaction.feedContext.split("::")
+          return split.length >= 2 && split[1] === 'news'
+        }
+        return false
+      })
+      .map(interaction => interaction.item!!)
+      .filter(Boolean)
+
+    if (seenNewsUris.length === 0) return
+
+    await ctx.db
+      .deleteFrom('news_post')
+      .where('actor_did', '=', requesterDid)
+      .where('post_uri', 'in', seenNewsUris)
+      .execute()
+
+    debugLog(`Removed ${seenNewsUris.length} seen news posts for ${requesterDid}`)
   }
 
   async function trackSeenHighlinePosts(requesterDid: string, interactions: any[]) {
