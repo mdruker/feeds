@@ -50,50 +50,79 @@ async function resolveMultipleDidsToHandles(dids) {
   return handleMap
 }
 
+let currentActorScores = []
+
 async function loadActorScores() {
   try {
     const response = await fetch('/api/actor-scores')
     const data = await response.json()
-    
-    const scoresList = document.getElementById('scores-list')
     
     if (data.actorScores && data.actorScores.length > 0) {
       // Resolve DIDs to handles
       const dids = data.actorScores.map(score => score.did)
       const handleMap = await resolveMultipleDidsToHandles(dids)
       
-      // Update with resolved handles
-      scoresList.innerHTML = data.actorScores.map(score => {
-        const handle = handleMap[score.did]
-        const displayName = handle ? `@${handle}` : score.did
-        return `
-          <div class="score-item" data-did="${score.did}">
-            <div class="score-info">
-              <span class="score-value ${score.score > 0 ? 'positive' : 'negative'}">${score.score > 0 ? '+' : ''}${score.score}</span>
-              <span class="score-handle">${displayName}</span>
-            </div>
-            <div class="score-actions">
-              <button class="secondary-button edit-score" data-did="${score.did}" data-handle="${handle}" data-score="${score.score}">Edit</button>
-              <button class="secondary-button remove-score" data-did="${score.did}">Remove</button>
-            </div>
-          </div>
-        `
-      }).join('')
+      // Store scores with resolved handles
+      currentActorScores = data.actorScores.map(score => ({
+        ...score,
+        handle: handleMap[score.did]
+      }))
       
-      // Add event listeners
-      scoresList.querySelectorAll('.edit-score').forEach(btn => {
-        btn.addEventListener('click', handleEditScore)
-      })
-      
-      scoresList.querySelectorAll('.remove-score').forEach(btn => {
-        btn.addEventListener('click', handleRemoveScore)
-      })
+      renderActorScores()
     } else {
-      scoresList.innerHTML = '<div class="empty-state">No account overrides set</div>'
+      currentActorScores = []
+      document.getElementById('scores-list').innerHTML = '<div class="empty-state">No account overrides set</div>'
     }
   } catch (error) {
     console.error('Error loading actor scores:', error)
   }
+}
+
+function renderActorScores() {
+  const scoresList = document.getElementById('scores-list')
+  const sortBy = document.getElementById('score-sort').value
+  
+  if (currentActorScores.length === 0) {
+    scoresList.innerHTML = '<div class="empty-state">No account overrides set</div>'
+    return
+  }
+  
+  // Sort the scores
+  const sortedScores = [...currentActorScores].sort((a, b) => {
+    if (sortBy === 'handle') {
+      const handleA = (a.handle || a.did).toLowerCase()
+      const handleB = (b.handle || b.did).toLowerCase()
+      return handleA.localeCompare(handleB)
+    } else { // sort by score
+      return b.score - a.score // descending order
+    }
+  })
+  
+  // Render sorted list
+  scoresList.innerHTML = sortedScores.map(score => {
+    const displayName = score.handle ? `@${score.handle}` : score.did
+    return `
+      <div class="score-item" data-did="${score.did}">
+        <div class="score-info">
+          <span class="score-value ${score.score > 0 ? 'positive' : 'negative'}">${score.score > 0 ? '+' : ''}${score.score}</span>
+          <span class="score-handle">${displayName}</span>
+        </div>
+        <div class="score-actions">
+          <button class="secondary-button edit-score" data-did="${score.did}" data-handle="${score.handle}" data-score="${score.score}">Edit</button>
+          <button class="secondary-button remove-score" data-did="${score.did}">Remove</button>
+        </div>
+      </div>
+    `
+  }).join('')
+  
+  // Add event listeners
+  scoresList.querySelectorAll('.edit-score').forEach(btn => {
+    btn.addEventListener('click', handleEditScore)
+  })
+  
+  scoresList.querySelectorAll('.remove-score').forEach(btn => {
+    btn.addEventListener('click', handleRemoveScore)
+  })
 }
 
 function showLoginView() {
@@ -506,6 +535,14 @@ async function handleRemoveScore(event) {
     showToast('Error removing score', true)
   }
 }
+
+// Add event listener for sort dropdown
+document.addEventListener('DOMContentLoaded', () => {
+  const sortSelect = document.getElementById('score-sort')
+  if (sortSelect) {
+    sortSelect.addEventListener('change', renderActorScores)
+  }
+})
 
 // Load initial data
 loadUserData()

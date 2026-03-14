@@ -99,8 +99,19 @@
             </div>
             
             <div id="existing-scores" style="margin-top: 24px;">
-                <h3>Account-Specific Overrides</h3>
-                <p class="setting-description">Set positive for more posts from this account, negative for less.</p>
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px;">
+                    <div>
+                        <h3>Account-Specific Overrides</h3>
+                        <p class="setting-description">Set positive for more posts from this account, negative for less.</p>
+                    </div>
+                    <div class="sort-controls">
+                        <label for="score-sort" class="sort-label">Sort by:</label>
+                        <select id="score-sort" class="sort-select">
+                            <option value="handle">Handle</option>
+                            <option value="score">Override Score</option>
+                        </select>
+                    </div>
+                </div>
                 <div id="scores-list" class="scores-list">
                     <div class="empty-state">Loading...</div>
                 </div>
