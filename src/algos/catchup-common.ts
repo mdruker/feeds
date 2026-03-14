@@ -267,24 +267,22 @@ export async function handleCatchupFeed(ctx: AppContext, requesterDid: string, p
     .selectFrom('combined')
     .selectAll()
 
-  // Trying out filtering posts that have been already seen
-  if (isAdmin) {
-    const cutOffDate = new Date()
-    cutOffDate.setHours(cutOffDate.getHours() - 24)
+  // Filter posts that have been already seen
+  const cutOffDate = new Date()
+  cutOffDate.setHours(cutOffDate.getHours() - 24)
 
-    queryBuilder = queryBuilder
-      .where((eb) => eb.not(eb.exists(
-        eb.selectFrom('seen_post')
-          .select('post_uri')
-          .where('actor_did', '=', requesterDid)
-          .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
-          .where('created_at', '>', cutOffDate)
-          .where((eb) => eb.or([
-            eb('seen_post.post_uri', '=', eb.ref('combined.uri')),
-            eb('seen_post.post_uri', '=', eb.ref('combined.post_uri'))
-          ]))
-      )))
-  }
+  queryBuilder = queryBuilder
+    .where((eb) => eb.not(eb.exists(
+      eb.selectFrom('seen_post')
+        .select('post_uri')
+        .where('actor_did', '=', requesterDid)
+        .where('shortname', '=', CATCHUP_FEED_SHORTNAME)
+        .where('created_at', '>', cutOffDate)
+        .where((eb) => eb.or([
+          eb('seen_post.post_uri', '=', eb.ref('combined.uri')),
+          eb('seen_post.post_uri', '=', eb.ref('combined.post_uri'))
+        ]))
+    )))
 
   if (shortname === highlineChron.shortname) {
     // For chronological, we don't want to get all the way to current posts,
