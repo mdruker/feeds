@@ -176,8 +176,10 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       .map((x) => x.record.reply?.parent?.uri)
       .filter((x) => x != null)
     let postsToLike = ops.likes.creates
+      .filter((x) => x.record.subject != null)
       .map((x) => x.record.subject.uri)
     let postsToRepost = ops.reposts.creates
+      .filter((x) => x.record.subject != null)
       .map((x) => x.record.subject.uri)
 
     // Calculate engagement count increments
