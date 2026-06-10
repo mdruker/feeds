@@ -101,10 +101,31 @@ export class FeedGenerator {
   }
 
   async start(): Promise<http.Server> {
-    await migrateToLatest(this.db)
-    this.jobWorker.start()
-    this.firehose.run()
-    this.cleanup.start()
+    // ROLE selects what this instance runs (see docs/zero-downtime-deploys.md):
+    //   all (default) — everything + migrate on boot. Single process for dev/staging.
+    //   web           — HTTP serving only; rolled blue-green. No boot migration.
+    //   worker        — firehose + jobs + cleanup, exactly one instance. No boot migration.
+    // Only `all` migrates on boot; web/worker rely on the separate `yarn migrate`
+    // deploy step, so rolling web instances never race a migration.
+    const role = (process.env.ROLE ?? 'all').toLowerCase()
+    if (!['all', 'web', 'worker'].includes(role)) {
+      throw new Error(`Invalid ROLE='${role}' (expected all|web|worker)`)
+    }
+    const runIngest = role === 'all' || role === 'worker'
+    console.log(`Starting with ROLE=${role}`)
+
+    if (role === 'all') {
+      await migrateToLatest(this.db)
+    }
+
+    if (runIngest) {
+      this.jobWorker.start()
+      this.firehose.run()
+      this.cleanup.start()
+    }
+
+    // All roles bind HTTP: web is what Caddy routes to; the worker uses it only
+    // for its own healthcheck (it's on the internal network, not the edge).
     this.server = this.app.listen(this.cfg.port, this.cfg.listenhost, () => {
       console.log(`App listening on port ${this.cfg.port}`)
     })

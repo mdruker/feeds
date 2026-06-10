@@ -12,6 +12,7 @@
     "unpublishStaging": "tsx --env-file=.env.staging scripts/unpublishFeedGen.ts",
     "unpublishProduction": "tsx --env-file=.env.production scripts/unpublishFeedGen.ts",
     "start": "tsx src/index.ts",
+    "migrate": "tsx src/migrate.ts",
     "build": "tsc"
   },
   "dependencies": {
