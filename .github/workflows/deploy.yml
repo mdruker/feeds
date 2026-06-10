@@ -1,8 +1,7 @@
 name: deploy
 
-# Build the existing Dockerfile, push to GHCR, and redeploy the box.
-# The feed has no test suite, so this triggers directly on push to main.
-# (fly deploys are manual via CLI, so this doesn't disturb the fly app.)
+# On push to main: run the test suite, then (only on green) build the Dockerfile,
+# push to GHCR, and redeploy the box.
 
 on:
   push:
@@ -17,7 +16,22 @@ env:
   IMAGE: ghcr.io/mdruker/feeds
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 23.7.0   # match the Dockerfile's NODE_VERSION
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+
+      - run: yarn test
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
