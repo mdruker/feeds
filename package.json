@@ -13,6 +13,7 @@
     "unpublishProduction": "tsx --env-file=.env.production scripts/unpublishFeedGen.ts",
     "start": "tsx src/index.ts",
     "migrate": "tsx src/migrate.ts",
+    "test": "node --import tsx --test test/*.test.ts",
     "build": "tsc"
   },
   "dependencies": {

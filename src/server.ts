@@ -6,7 +6,8 @@ import { createServer } from './lexicon'
 import feedGeneration from './methods/get-feed-skeleton'
 import sendInteractions from './methods/send-interactions'
 import describeGenerator from './methods/describe-generator'
-import { createDb, Database, migrateToLatest } from './db/database'
+import { createDb, Database, migrateToLatest, pingDb, getPendingMigrations } from './db/database'
+import { checkReadiness } from './health'
 import { FirehoseSubscription } from './subscription'
 import { AppContext, Config } from './config'
 import wellKnown from './well-known'
@@ -82,6 +83,28 @@ export class FeedGenerator {
 
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
+
+    // Liveness: the process is up and serving HTTP. Always 200 once listening;
+    // used by the container healthcheck (incl. the worker, which isn't on the edge).
+    app.get('/healthz', (_req, res) => {
+      res.json({ status: 'ok', role: process.env.ROLE ?? 'all' })
+    })
+
+    // Readiness: 200 only when this instance can serve correctly — DB reachable
+    // AND schema migrated (no pending migrations). The blue-green deploy gates
+    // traffic on this so a green web instance never takes requests before the
+    // deploy's migrate step has run. See docs/migrations.md. Decision logic lives
+    // in ./health (unit tested); this route just maps it onto the response.
+    app.get('/readyz', async (_req, res) => {
+      const { statusCode, body } = await checkReadiness({
+        ping: () => pingDb(db),
+        getPending: () => getPendingMigrations(db),
+        role: process.env.ROLE ?? 'all',
+        onError: (err) => console.error('readiness check failed:', err),
+      })
+      res.status(statusCode).json(body)
+    })
+
     feedGeneration(server, ctx)
     sendInteractions(server, ctx)
 
@@ -101,7 +124,7 @@ export class FeedGenerator {
   }
 
   async start(): Promise<http.Server> {
-    // ROLE selects what this instance runs (see docs/zero-downtime-deploys.md):
+    // ROLE selects what this instance runs (see docs/migrations.md and the README):
     //   all (default) — everything + migrate on boot. Single process for dev/staging.
     //   web           — HTTP serving only; rolled blue-green. No boot migration.
     //   worker        — firehose + jobs + cleanup, exactly one instance. No boot migration.

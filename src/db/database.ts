@@ -1,4 +1,4 @@
-import { Kysely, Migrator, MysqlDialect } from 'kysely'
+import { Kysely, Migrator, MysqlDialect, sql } from 'kysely'
 import { createPool } from 'mysql2'
 import { DatabaseSchema } from './schema'
 import { migrationProvider } from './migrations'
@@ -38,6 +38,21 @@ export const migrateToLatest = async (db: Database) => {
   const migrator = new Migrator({ db, provider: migrationProvider })
   const { error } = await migrator.migrateToLatest()
   if (error) throw error
+}
+
+// Cheap connectivity probe for the readiness check. Throws if the pool can't
+// reach the DB.
+export const pingDb = async (db: Database): Promise<void> => {
+  await sql`select 1`.execute(db)
+}
+
+// Names of migrations defined in code but not yet applied. Empty = schema is at
+// the version this code expects. Used by the readiness check so a rolling web
+// instance won't take traffic before the deploy's migrate step has run.
+export const getPendingMigrations = async (db: Database): Promise<string[]> => {
+  const migrator = new Migrator({ db, provider: migrationProvider })
+  const migrations = await migrator.getMigrations()
+  return migrations.filter((m) => !m.executedAt).map((m) => m.name)
 }
 
 export type Database = Kysely<DatabaseSchema>
