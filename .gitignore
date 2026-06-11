@@ -72,6 +72,9 @@ web_modules/
 # Yarn Integrity file
 .yarn-integrity
 
+# This is a yarn project; don't let a stray `npm install` reintroduce npm's lockfile
+package-lock.json
+
 # dotenv environment variable files
 # I'm not excluding them but you might want to
 #.env.*
