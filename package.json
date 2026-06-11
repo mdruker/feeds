@@ -17,13 +17,10 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@atcute/client": "^4.1.0",
     "@atproto/api": "^0.18.3",
     "@atproto/identity": "^0.4.10",
-    "@atproto/jwk-jose": "^0.1.11",
     "@atproto/lexicon": "^0.5.2",
     "@atproto/oauth-client-node": "^0.3.11",
-    "@atproto/repo": "^0.8.11",
     "@atproto/syntax": "^0.4.1",
     "@atproto/xrpc-server": "^0.9.4",
     "@skyware/jetstream": "^0.2.5",
@@ -33,18 +30,13 @@
     "iron-session": "^8.0.4",
     "kysely": "^0.27.5",
     "multiformats": "^13.3.1",
-    "mysql": "^2.18.1",
     "mysql2": "^3.14.2",
-    "pg": "^8.15.6",
-    "uhtml": "^4.7.0",
     "ws": "^8.18.0",
     "yocto-queue": "^1.1.1"
   },
   "devDependencies": {
     "@atproto/lex-cli": "^0.9.7",
-    "@flydotio/dockerfile": "^0.7.4",
     "@inquirer/prompts": "^7.3.1",
-    "@types/better-sqlite3": "^7.6.12",
     "@types/express": "^4.17.21",
     "@types/node": "^22.13.1",
     "inquirer": "^12.4.1",
