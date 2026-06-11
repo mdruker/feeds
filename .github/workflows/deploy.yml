@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 23.7.0   # match the Dockerfile's NODE_VERSION
+          node-version-file: .nvmrc   # single source of truth (also drives the image build)
           cache: yarn
 
       - run: yarn install --frozen-lockfile
@@ -38,6 +38,10 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Read Node version from .nvmrc
+        id: node
+        run: echo "version=$(cat .nvmrc)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -62,6 +66,8 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
+          build-args: |
+            NODE_VERSION=${{ steps.node.outputs.version }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

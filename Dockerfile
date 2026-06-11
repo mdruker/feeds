@@ -1,7 +1,8 @@
 # syntax = docker/dockerfile:1
 
-# Adjust NODE_VERSION as desired
-ARG NODE_VERSION=23.7.0
+# Node version lives in .nvmrc (single source of truth). CI passes it as a
+# --build-arg read from .nvmrc; this default keeps a bare `docker build` in sync.
+ARG NODE_VERSION=24
 FROM node:${NODE_VERSION}-slim AS base
 
 LABEL fly_launch_runtime="Node.js"
