@@ -3,6 +3,8 @@ import { debugLog } from '../lib/env'
 
 export class CleanupService {
   private db: Database
+  private timer?: NodeJS.Timeout
+  private stopping = false
 
   constructor(db: Database) {
     this.db = db
@@ -36,18 +38,26 @@ export class CleanupService {
   }
 
   start(intervalMs: number = 5000): void {
+    this.stopping = false
     const scheduleNext = () => {
-      setTimeout(async () => {
+      this.timer = setTimeout(async () => {
+        if (this.stopping) return
         try {
           await this.deleteOldRecords()
         } catch (error) {
           console.error('Error during cleanup:', error)
         }
-        scheduleNext()
+        if (!this.stopping) scheduleNext()
       }, intervalMs)
     }
 
     scheduleNext()
     console.log(`Cleanup service started with ${intervalMs}ms interval between runs`)
+  }
+
+  // Stop scheduling further runs. A run already in flight finishes on its own.
+  stop(): void {
+    this.stopping = true
+    if (this.timer) clearTimeout(this.timer)
   }
 }

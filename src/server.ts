@@ -28,6 +28,9 @@ export class FeedGenerator {
   public firehose: FirehoseSubscription
   public cleanup: CleanupService
   public cfg: Config
+  // Shared with the /readyz handler: flipped true on shutdown so the route
+  // reports not-ready and the load balancer drains this instance.
+  public lifecycle: { shuttingDown: boolean }
 
   constructor(
     app: express.Application,
@@ -37,6 +40,7 @@ export class FeedGenerator {
     firehose: FirehoseSubscription,
     cleanup: CleanupService,
     cfg: Config,
+    lifecycle: { shuttingDown: boolean },
   ) {
     this.app = app
     this.db = db
@@ -45,11 +49,13 @@ export class FeedGenerator {
     this.firehose = firehose
     this.cleanup = cleanup
     this.cfg = cfg
+    this.lifecycle = lifecycle
   }
 
   static create(cfg: Config) {
     const app = express()
     const db = createDb()
+    const lifecycle = { shuttingDown: false }
     const firehose = new FirehoseSubscription(db)
     const didCache = new MemoryCache()
     const didResolver = new DidResolver({
@@ -100,6 +106,7 @@ export class FeedGenerator {
         ping: () => pingDb(db),
         getPending: () => getPendingMigrations(db),
         role: process.env.ROLE ?? 'all',
+        shuttingDown: lifecycle.shuttingDown,
         onError: (err) => console.error('readiness check failed:', err),
       })
       res.status(statusCode).json(body)
@@ -120,7 +127,7 @@ export class FeedGenerator {
 
     app.use((_req, res) => res.sendStatus(404))
 
-    return new FeedGenerator(app, db, jobManager, jobWorker, firehose, cleanup, cfg)
+    return new FeedGenerator(app, db, jobManager, jobWorker, firehose, cleanup, cfg, lifecycle)
   }
 
   async start(): Promise<http.Server> {
@@ -159,6 +166,38 @@ export class FeedGenerator {
       console.log(`Memory usage: rss: ${Math.round(used.rss / 1024 / 1024)} MB, heapTotal: ${Math.round(used.heapTotal / 1024 / 1024)} MB`)
     }, 60000)
     return this.server
+  }
+
+  // Graceful drain on SIGTERM/SIGINT. Order matters:
+  //  1. /readyz -> 503 so the load balancer stops routing new requests here.
+  //  2. stop the HTTP listener and let in-flight requests finish (these may hit
+  //     the DB, so this must happen before we close the pool).
+  //  3. stop ingest (no-ops for ROLE=web, which never started them) so nothing
+  //     keeps querying once we close the pool.
+  //  4. close the DB pool.
+  // Safe to call more than once; idempotent via the shuttingDown guard.
+  async shutdown(signal: string): Promise<void> {
+    if (this.lifecycle.shuttingDown) return
+    this.lifecycle.shuttingDown = true
+    const role = process.env.ROLE ?? 'all'
+    console.log(`${signal} received — draining (ROLE=${role})`)
+
+    await new Promise<void>((resolve) => {
+      if (!this.server) return resolve()
+      this.server.close(() => resolve())
+      // Nudge idle keep-alive sockets so close() doesn't wait on them.
+      this.server.closeIdleConnections?.()
+    })
+
+    this.cleanup.stop()
+    await Promise.all([this.firehose.stop(), this.jobWorker.stop()])
+
+    try {
+      await this.db.destroy()
+    } catch (err) {
+      console.error('db destroy:', err)
+    }
+    console.log('drain complete')
   }
 }
 

@@ -15,12 +15,17 @@ const MAX_WAIT_MS = 10000
 
 export abstract class FirehoseSubscriptionBase {
   public jetstream: Jetstream
+  private stopping = false
+  private stopped?: Promise<void>
+  private onStopped?: () => void
 
   constructor(public db: Database) {}
 
   abstract handleOps(ops: OperationsByType): Promise<void>
 
   async run() {
+    this.stopping = false
+    this.stopped = new Promise((resolve) => { this.onStopped = resolve })
     let lastSuccessfulCursor = await this.getCursor()
     const eventQueue = new Queue<JetstreamEvent>()
 
@@ -72,7 +77,7 @@ export abstract class FirehoseSubscriptionBase {
       let t0: number = performance.now()
       let opsByType: OperationsByType = opsByTypeClean()
 
-      while (true) {
+      while (!this.stopping) {
         if (eventQueue.size === 0) {
           // TODO: understand why this is necessary
           await new Promise((resolve) => setTimeout(resolve, 50))
@@ -133,6 +138,20 @@ export abstract class FirehoseSubscriptionBase {
     this.jetstream.start()
 
     await processQueue()
+    this.onStopped?.()
+  }
+
+  // Stop consuming: close the websocket and let the queue loop finish its
+  // current batch and exit. Resolves once the loop has stopped (the last cursor
+  // it handled is already persisted), or immediately if it was never started.
+  stop(): Promise<void> {
+    this.stopping = true
+    try {
+      this.jetstream?.close()
+    } catch (err) {
+      console.error('jetstream close:', err)
+    }
+    return this.stopped ?? Promise.resolve()
   }
 
   private async getDbCursor() {

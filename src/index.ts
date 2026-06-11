@@ -27,6 +27,23 @@ const run = async () => {
   console.log(
     `🤖 running feed generator at http://${server.cfg.listenhost}:${server.cfg.port}`,
   )
+
+  // Drain on signals so a deploy's `docker stop` doesn't cut in-flight requests.
+  // The hard timeout is a backstop in case a drain hangs; keep it under the
+  // container's stop grace period so we exit cleanly before SIGKILL.
+  const drain = (signal: string) => {
+    const force = setTimeout(() => {
+      console.error('drain timed out — forcing exit')
+      process.exit(1)
+    }, 15000)
+    force.unref()
+    server
+      .shutdown(signal)
+      .then(() => { clearTimeout(force); process.exit(0) })
+      .catch((err) => { console.error('shutdown error:', err); process.exit(1) })
+  }
+  process.on('SIGTERM', () => drain('SIGTERM'))
+  process.on('SIGINT', () => drain('SIGINT'))
 }
 
 const maybeInt = (val?: string) => {

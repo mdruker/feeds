@@ -7,6 +7,7 @@ export type ReadinessResult = {
   statusCode: 200 | 503
   body:
     | { status: 'ready'; role: string }
+    | { status: 'not_ready'; reason: 'shutting_down'; role: string }
     | { status: 'not_ready'; reason: 'pending_migrations'; pending: string[]; role: string }
     | { status: 'not_ready'; reason: 'db_unavailable'; role: string }
 }
@@ -17,12 +18,18 @@ export interface ReadinessDeps {
   // Names of migrations defined in code but not yet applied.
   getPending: () => Promise<string[]>
   role: string
+  // True once a SIGTERM drain has begun: report not-ready so the load balancer
+  // stops routing here while in-flight requests finish.
+  shuttingDown?: boolean
   // Optional sink for the underlying error when the DB is unreachable.
   onError?: (err: unknown) => void
 }
 
 export const checkReadiness = async (deps: ReadinessDeps): Promise<ReadinessResult> => {
   const { role } = deps
+  if (deps.shuttingDown) {
+    return { statusCode: 503, body: { status: 'not_ready', reason: 'shutting_down', role } }
+  }
   try {
     await deps.ping()
     const pending = await deps.getPending()

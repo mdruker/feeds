@@ -6,6 +6,10 @@ import { DidResolver } from '@atproto/identity'
 const PROCESS_ID = `${process.env.FLY_MACHINE_ID || 'local'}:${process.pid}`
 
 export class JobWorker {
+  private stopping = false
+  private stopped?: Promise<void>
+  private onStopped?: () => void
+
   constructor(
     private jobManager: JobManager,
     private db: Database,
@@ -21,11 +25,14 @@ export class JobWorker {
   }
 
   async start() {
+    this.stopping = false
+    this.stopped = new Promise((resolve) => { this.onStopped = resolve })
+
     // Get the list of job types we can handle
     const jobTypes = jobHandlers.getRegisteredTypes()
 
     const handlePendingJobs = async () => {
-      while (true) {
+      while (!this.stopping) {
         try {
           // This isn't efficient, but if we have few jobs, this doesn't run too often
           await this.jobManager.releaseOrphanedJobs()
@@ -57,5 +64,13 @@ export class JobWorker {
 
     console.log(`Starting job manager.`)
     await handlePendingJobs()
+    this.onStopped?.()
+  }
+
+  // Ask the loop to finish: it completes any job in flight, then exits. Resolves
+  // once the loop has actually stopped (or immediately if it was never started).
+  stop(): Promise<void> {
+    this.stopping = true
+    return this.stopped ?? Promise.resolve()
   }
 }

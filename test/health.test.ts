@@ -13,6 +13,21 @@ test('ready: DB reachable and no pending migrations -> 200', async () => {
   assert.deepEqual(res.body, { status: 'ready', role: 'web' })
 })
 
+test('not ready: shutting down -> 503 short-circuits before any DB call', async () => {
+  let pinged = false
+  const res = await checkReadiness({
+    ping: async () => {
+      pinged = true
+    },
+    getPending: async () => [],
+    role: 'web',
+    shuttingDown: true,
+  })
+  assert.equal(res.statusCode, 503)
+  assert.deepEqual(res.body, { status: 'not_ready', reason: 'shutting_down', role: 'web' })
+  assert.equal(pinged, false, 'a draining instance should not bother probing the DB')
+})
+
 test('not ready: pending migrations -> 503 with the pending names', async () => {
   const res = await checkReadiness({
     ping: ok,
