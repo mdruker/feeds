@@ -237,3 +237,16 @@ migrations['004'] = {
       .execute()
   },
 }
+
+migrations['005'] = {
+  async up(db: Kysely<unknown>) {
+    // Supports the network-wide "most-100" feed: pull the highest-engagement
+    // posts in the last day. Leading engagement_count desc serves the ORDER BY
+    // ... LIMIT; indexed_at lets the time-window filter be applied in-index.
+    await db.schema
+      .createIndex('idx_post_engagement_indexed')
+      .on('post')
+      .columns(['engagement_count desc', 'indexed_at'])
+      .execute()
+  },
+}
