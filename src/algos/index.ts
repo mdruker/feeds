@@ -8,6 +8,7 @@ import * as highlineChron from './highline-chron'
 import * as onlyLinks from './only-links'
 import * as followingChron from './following-chron'
 import * as topReposts from './top-reposts'
+import * as most100 from './most-100'
 
 type AlgoHandler = (ctx: AppContext, params: QueryParams, requesterDid: string) => Promise<OutputSchema>
 
@@ -18,7 +19,8 @@ const algos: Record<string, AlgoHandler> = {
   [highlineChron.shortname]: <AlgoHandler>highlineChron.handler,
   [onlyLinks.shortname]: <AlgoHandler>onlyLinks.handler,
   [followingChron.shortname]: <AlgoHandler>followingChron.handler,
-  [topReposts.shortname]: <AlgoHandler>topReposts.handler
+  [topReposts.shortname]: <AlgoHandler>topReposts.handler,
+  [most100.shortname]: <AlgoHandler>most100.handler
 }
 
 export default algos
