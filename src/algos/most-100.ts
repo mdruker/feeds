@@ -28,7 +28,11 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
   startDate.setHours(startDate.getHours() - WINDOW_HOURS)
 
   // Pick the top MOST_COUNT by engagement, then page through that snapshot in
-  // reverse-chronological order. cid is the stable tiebreaker throughout.
+  // reverse-chronological order. The inner tiebreaker is indexed_at (not cid)
+  // so the ORDER BY matches idx_post_engagement_indexed exactly — MySQL walks
+  // the index and stops at MOST_COUNT instead of filesorting the whole ~24h
+  // table. The boundary tiebreak among equal-engagement posts is arbitrary
+  // anyway; the outer query is what orders the result for display.
   let queryBuilder = ctx.db
     .with('topPosts', (db) =>
       db
@@ -36,7 +40,7 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
         .select(['uri', 'cid', 'indexed_at'])
         .where('indexed_at', '>', startDate)
         .orderBy('engagement_count', 'desc')
-        .orderBy('cid', 'desc')
+        .orderBy('indexed_at', 'asc')
         .limit(MOST_COUNT),
     )
     .selectFrom('topPosts')
