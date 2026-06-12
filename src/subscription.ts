@@ -1,6 +1,7 @@
 import { FirehoseSubscriptionBase, OperationsByType } from './util/subscription'
 import { isLink } from './lexicon/types/app/bsky/richtext/facet'
 import { isMain as isExternalEmbed } from './lexicon/types/app/bsky/embed/external'
+import { Database } from './db/database'
 import { Post, Repost } from './db/schema'
 import { PostProperties } from './util/properties'
 import { AtUri } from '@atproto/syntax'
@@ -10,15 +11,15 @@ import { sql } from 'kysely'
 const ARCHIVED_POST_CUTOFF_HOURS = 24*7
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
-  async handleOps(ops: OperationsByType) {
+  async handleOps(ops: OperationsByType, db: Database) {
     const batchProcessDate = new Date()
     await Promise.all([
-      this.handleMain(ops, batchProcessDate),
-      this.handleReposts(ops, batchProcessDate)
+      this.handleMain(ops, batchProcessDate, db),
+      this.handleReposts(ops, batchProcessDate, db)
     ])
   }
 
-  async handleMain(ops: OperationsByType, batchProcessDate: Date) {
+  async handleMain(ops: OperationsByType, batchProcessDate: Date, db: Database) {
     let t0 = performance.now()
 
     let identityUpdateDids = ops.identityEvents
@@ -26,7 +27,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       .map(x => x.did)
 
     if (identityUpdateDids.length > 0) {
-      let res = await this.db
+      let res = await db
         .selectFrom('profile')
         .select('did')
         .where('did', 'in', identityUpdateDids)
@@ -52,7 +53,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         }))
 
       if (profileUpdates.length > 0) {
-        await this.db
+        await db
           .insertInto('profile')
           .values(profileUpdates)
           .onDuplicateKeyUpdate({
@@ -63,7 +64,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       }
     }
 
-    let actorResult = await this.db
+    let actorResult = await db
       .selectFrom('actor')
       .select('did')
       .execute()
@@ -82,7 +83,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         }
       })
     if (followsToCreate.length > 0) {
-      await this.db
+      await db
         .insertInto('follow')
         .values(followsToCreate)
         .ignore()
@@ -95,14 +96,14 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     let followsDeleted = 0
     if (followsToDelete.length > 0) {
       // The full entries we're going to delete.
-      let followDeleteResults = await this.db
+      let followDeleteResults = await db
         .selectFrom('follow')
         .selectAll()
         .where('uri', 'in', followsToDelete)
         .execute()
 
       // Now we can delete them.
-      await this.db
+      await db
         .deleteFrom('follow')
         .where('uri', 'in', followsToDelete)
         .execute()
@@ -163,7 +164,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       })
 
     if (postsToCreate.length > 0) {
-      await this.db
+      await db
         .insertInto('post')
         .values(postsToCreate)
         .ignore()
@@ -202,7 +203,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       }, new Map<number, string[]>());
 
       for (let [count, uris] of engagementsByCount.entries()) {
-        await this.db
+        await db
           .updateTable('post')
           .set({
             engagement_count: sql`engagement_count + ${count}`,
@@ -217,7 +218,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     let postsToDelete = ops.posts.deletes
       .map((x) => x.uri)
     if (postsToDelete.length > 0) {
-      await this.db
+      await db
         .deleteFrom('post')
         .where('uri', 'in', postsToDelete)
         .execute()
@@ -226,7 +227,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     console.log(`Processed ${ops.posts.creates.length} posts created, ${postsToDelete.length} post deletes, etc. in ${Math.round(performance.now() - t0)} ms`)
   }
 
-  async handleReposts(ops: OperationsByType, batchProcessDate: Date) {
+  async handleReposts(ops: OperationsByType, batchProcessDate: Date, db: Database) {
     let t0 = performance.now()
 
     // We don't want backdated posts in our feeds.
@@ -254,7 +255,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
       })
 
     if (repostsToCreate.length > 0) {
-      await this.db
+      await db
         .insertInto('repost')
         .values(repostsToCreate)
         .ignore()
@@ -264,7 +265,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     // Handle repost deletes
     const repostsToDelete = ops.reposts.deletes.map((x) => x.uri)
     if (repostsToDelete.length > 0) {
-      await this.db
+      await db
         .deleteFrom('repost')
         .where('uri', 'in', repostsToDelete)
         .execute()

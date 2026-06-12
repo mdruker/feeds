@@ -150,7 +150,7 @@ export class FeedGenerator {
 
     if (runIngest) {
       this.jobWorker.start()
-      this.firehose.run()
+      this.superviseFirehose()
       this.cleanup.start()
     }
 
@@ -166,6 +166,14 @@ export class FeedGenerator {
       console.log(`Memory usage: rss: ${Math.round(used.rss / 1024 / 1024)} MB, heapTotal: ${Math.round(used.heapTotal / 1024 / 1024)} MB`)
     }, 60000)
     return this.server
+  }
+
+  private superviseFirehose(): void {
+    this.firehose.run().catch((err) => {
+      if (this.lifecycle.shuttingDown) return
+      console.error('Firehose run() exited unexpectedly — restarting in 5s:', err)
+      setTimeout(() => this.superviseFirehose(), 5000)
+    })
   }
 
   // Graceful drain on SIGTERM/SIGINT. Order matters:

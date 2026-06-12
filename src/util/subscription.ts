@@ -21,7 +21,7 @@ export abstract class FirehoseSubscriptionBase {
 
   constructor(public db: Database) {}
 
-  abstract handleOps(ops: OperationsByType): Promise<void>
+  abstract handleOps(ops: OperationsByType, db: Database): Promise<void>
 
   async run() {
     this.stopping = false
@@ -104,9 +104,11 @@ export abstract class FirehoseSubscriptionBase {
         if (opsByType.opsProcessed >= BATCH_SIZE || performance.now() - t0 > MAX_WAIT_MS) {
           let t1 = performance.now()
 
+          // handleOpsWithRetry only rejects on shutdown — errors are retried
+          // internally, so a batch is never dropped. Cursor advances on success.
           let handledHere = false
           await semaphore.acquire().then(async ([value, release]) => {
-            await this.handleOps(opsByType)
+            await this.transactionalHandleOpsWithRetry(opsByType)
               .then(() => {
                 lastSuccessfulCursor = opsByType.cursor
                 opsByType = opsByTypeClean()
@@ -137,8 +139,36 @@ export abstract class FirehoseSubscriptionBase {
     this.jetstream.cursor = lastSuccessfulCursor
     this.jetstream.start()
 
-    await processQueue()
-    this.onStopped?.()
+    // finally so a pending stop() (and the shutdown drain awaiting it) can't
+    // hang if processQueue throws.
+    try {
+      await processQueue()
+    } finally {
+      this.onStopped?.()
+    }
+  }
+
+  private async transactionalHandleOpsWithRetry(ops: OperationsByType): Promise<void> {
+    const BASE_DELAY_MS = 250
+    const MAX_DELAY_MS = 30000
+    let attempt = 0
+    while (true) {
+      try {
+        await this.db.transaction().execute((trx) => this.handleOps(ops, trx))
+        if (attempt > 0) {
+          console.log(`Batch succeeded after ${attempt} ${attempt === 1 ? 'retry' : 'retries'}`)
+        }
+        return
+      } catch (err) {
+        // stop() is only called on shutdown: bail so the queue loop can exit.
+        // The batch rolled back and isn't acked, so we resume from the cursor.
+        if (this.stopping) throw err
+        attempt++
+        const delay = Math.min(BASE_DELAY_MS * 2 ** (attempt - 1), MAX_DELAY_MS)
+        console.error(`Error handling batch (attempt ${attempt}) — retrying in ${delay}ms:`, err)
+        await new Promise((resolve) => setTimeout(resolve, delay))
+      }
+    }
   }
 
   // Stop consuming: close the websocket and let the queue loop finish its
