@@ -250,3 +250,26 @@ migrations['005'] = {
       .execute()
   },
 }
+
+migrations['006'] = {
+  async up(db: Kysely<unknown>) {
+    // Per-(viewer, subject, feed) settings about how a feed should treat a given
+    // account. Designed to later absorb actor_score (a score column) and a
+    // '*' global shortname.
+    await db.schema
+      .createTable('feed_subject_settings')
+      .addColumn('actor_did', 'varchar(255)', (col) => col.notNull())
+      .addColumn('subject_did', 'varchar(255)', (col) => col.notNull())
+      .addColumn('shortname', 'varchar(255)', (col) => col.notNull())
+      .addColumn('muted', 'boolean', (col) => col.notNull().defaultTo(false))
+      .addColumn('hide_reposts', 'boolean', (col) => col.notNull().defaultTo(false))
+      .addColumn('updated_at', 'datetime', (col) => col.notNull())
+      .execute()
+    await db.schema
+      .createIndex('unq_feed_subject_settings_actor_subject_shortname')
+      .unique()
+      .on('feed_subject_settings')
+      .columns(['actor_did', 'subject_did', 'shortname'])
+      .execute()
+  },
+}

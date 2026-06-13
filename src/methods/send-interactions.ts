@@ -6,6 +6,7 @@ import { sql } from 'kysely'
 import { debugLog } from '../lib/env'
 import * as highlineChron from '../algos/highline-chron'
 import * as followingChron from '../algos/following-chron'
+import * as followingMinus from '../algos/following-minus'
 import * as catchup from '../algos/catchup'
 import { getCursor } from '../util/cursors'
 import { hasAdminPermission } from '../web/utils'
@@ -47,7 +48,20 @@ export default function (server: Server, ctx: AppContext) {
 
         const postUri = new AtUri(interaction.item)
         if (interaction.event === 'app.bsky.feed.defs#requestLess') {
-          await updateScore(requesterDid, postUri.host, -1)
+          // following-minus handles "show less" as a mute rather than a score
+          // nudge. Its feedContext is following-minus::<cursor>::<post|repost>::<subjectDid>
+          // — the subject DID is carried explicitly because a repost item's URI
+          // points at the original author, not the reposter.
+          const ctxParts = interaction.feedContext?.split('::') ?? []
+          if (ctxParts[0] === followingMinus.shortname) {
+            const itemType = ctxParts[2]
+            const subjectDid = ctxParts[3]
+            if (subjectDid && (itemType === 'post' || itemType === 'repost')) {
+              await muteSubject(requesterDid, ctxParts[0], subjectDid, itemType)
+            }
+          } else {
+            await updateScore(requesterDid, postUri.host, -1)
+          }
         } else if (interaction.event === 'app.bsky.feed.defs#requestMore') {
           await updateScore(requesterDid, postUri.host, 1)
         } else if (interaction.event === 'app.bsky.feed.defs#interactionLike'
@@ -118,6 +132,28 @@ export default function (server: Server, ctx: AppContext) {
       })
       .where('source_did', '=', requesterDid)
       .where('target_did', '=', targetDid)
+      .execute()
+  }
+
+  // "Show less" on a following-minus item: muting a post hides the account
+  // entirely; muting a repost hides only its reposts. Flags only escalate
+  // (OR-ed in), never downgrade — un-muting happens on the settings page.
+  async function muteSubject(requesterDid: string, shortname: string, subjectDid: string, itemType: 'post' | 'repost') {
+    await ctx.db
+      .insertInto('feed_subject_settings')
+      .values({
+        actor_did: requesterDid,
+        subject_did: subjectDid,
+        shortname,
+        muted: itemType === 'post',
+        hide_reposts: itemType === 'repost',
+        updated_at: new Date(),
+      })
+      .onDuplicateKeyUpdate({
+        muted: sql`muted OR VALUES(muted)`,
+        hide_reposts: sql`hide_reposts OR VALUES(hide_reposts)`,
+        updated_at: sql`VALUES(updated_at)`,
+      })
       .execute()
   }
 

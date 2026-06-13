@@ -9,6 +9,7 @@ import * as onlyLinks from './only-links'
 import * as followingChron from './following-chron'
 import * as topReposts from './top-reposts'
 import * as most100 from './most-100'
+import * as followingMinus from './following-minus'
 
 type AlgoHandler = (ctx: AppContext, params: QueryParams, requesterDid: string | null) => Promise<OutputSchema>
 
@@ -24,7 +25,8 @@ const algos: Record<string, AlgoHandler> = {
   [onlyLinks.shortname]: <AlgoHandler>onlyLinks.handler,
   [followingChron.shortname]: <AlgoHandler>followingChron.handler,
   [topReposts.shortname]: <AlgoHandler>topReposts.handler,
-  [most100.shortname]: <AlgoHandler>most100.handler
+  [most100.shortname]: <AlgoHandler>most100.handler,
+  [followingMinus.shortname]: <AlgoHandler>followingMinus.handler
 }
 
 export default algos

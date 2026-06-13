@@ -15,6 +15,7 @@ export type DatabaseSchema = {
   news_post: NewsPost
   feed_state: FeedState
   seen_post: SeenPost
+  feed_subject_settings: FeedSubjectSettings
 }
 
 export type SubState = {
@@ -123,4 +124,13 @@ export type SeenPost = {
   shortname: string
   post_uri: string
   created_at: Date
+}
+
+export type FeedSubjectSettings = {
+  actor_did: string
+  subject_did: string
+  shortname: string
+  muted: boolean
+  hide_reposts: boolean
+  updated_at: Date
 }
