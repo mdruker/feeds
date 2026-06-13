@@ -12,7 +12,7 @@ export const shortname = 'most-100'
 const MOST_COUNT = 100
 const WINDOW_HOURS = 24
 
-export const handler = async (ctx: AppContext, params: QueryParams, requesterDid: string) => {
+export const handler = async (ctx: AppContext, params: QueryParams) => {
   // Keyset cursor on the display order (indexed_at, cid). Both are immutable per
   // post, so paging stays stable even as engagement counts churn the ranking
   // between requests — unlike an offset, which would dupe/skip on reordering.

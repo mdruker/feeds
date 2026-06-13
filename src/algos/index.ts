@@ -10,9 +10,13 @@ import * as followingChron from './following-chron'
 import * as topReposts from './top-reposts'
 import * as most100 from './most-100'
 
-type AlgoHandler = (ctx: AppContext, params: QueryParams, requesterDid: string) => Promise<OutputSchema>
+type AlgoHandler = (ctx: AppContext, params: QueryParams, requesterDid: string | null) => Promise<OutputSchema>
 
 export const allShortnames = new Set([catchup.shortname, highlineChron.shortname, onlyLinks.shortname])
+
+// Feeds that ignore requesterDid, so auth is optional and we skip actor/follow
+// population for them.
+export const noAuthShortnames = new Set<string>([most100.shortname])
 
 const algos: Record<string, AlgoHandler> = {
   [catchup.shortname]: <AlgoHandler>catchup.handler,
