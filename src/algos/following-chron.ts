@@ -39,6 +39,8 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
 
   let queryBuilder = ctx.db
     .with('recentPosts', (db) => {
+        // The reply rule: a top-level post, or a reply whose thread root is a
+        // follow OR yourself (so replies into your own threads show too).
         let postsQuery: SelectQueryBuilder<any, any, any> = db.selectFrom('post')
           .innerJoin(
             'follow as author_follow',
@@ -53,7 +55,9 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
               .on('root_follow.source_did', '=', requesterDid),
           )
           .where((eb) =>
-            eb('reply_parent_uri', 'is', null).or('root_follow.target_did', 'is not', null)
+            eb('reply_parent_uri', 'is', null)
+              .or('root_follow.target_did', 'is not', null)
+              .or('post.reply_root_did', '=', requesterDid)
           )
           .select(['post.uri', 'post.cid', sql<string>`null`.as('post_uri'), 'post.indexed_at'])
 
@@ -66,8 +70,31 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
           )
           .select(['repost.uri as uri', 'repost.cid', 'repost.post_uri', 'repost.indexed_at'])
 
+        // Your own posts and replies (same reply rule), and your own reposts —
+        // so the feed includes you, like the standard Following feed.
+        const selfPostsQuery = db.selectFrom('post')
+          .leftJoin(
+            'follow as root_follow',
+            (join) => join
+              .onRef('root_follow.target_did', '=', 'post.reply_root_did')
+              .on('root_follow.source_did', '=', requesterDid),
+          )
+          .where('post.author_did', '=', requesterDid)
+          .where((eb) =>
+            eb('reply_parent_uri', 'is', null)
+              .or('root_follow.target_did', 'is not', null)
+              .or('post.reply_root_did', '=', requesterDid)
+          )
+          .select(['post.uri', 'post.cid', sql<string>`null`.as('post_uri'), 'post.indexed_at'])
+
+        const selfRepostsQuery = db.selectFrom('repost')
+          .where('repost.author_did', '=', requesterDid)
+          .select(['repost.uri as uri', 'repost.cid', 'repost.post_uri', 'repost.indexed_at'])
+
         return postsQuery
+          .unionAll(selfPostsQuery)
           .unionAll(repostsQuery)
+          .unionAll(selfRepostsQuery)
       },
     )
     .selectFrom('recentPosts')

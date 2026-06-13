@@ -46,14 +46,47 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
           .on('root_mute.shortname', '=', shortname)
           .onRef('root_mute.subject_did', '=', 'post.reply_root_did')
           .on('root_mute.muted', '=', true))
-        // following-chron's rule: top-level posts, or replies whose root author
-        // is also a follow.
+        // Top-level posts, or replies whose thread root is a follow OR yourself
+        // (the last clause surfaces follows' replies into your own threads).
         .where((eb) => eb('post.reply_parent_uri', 'is', null)
-          .or('root_follow.target_did', 'is not', null))
+          .or('root_follow.target_did', 'is not', null)
+          .or('post.reply_root_did', '=', requesterDid))
         .where('author_mute.subject_did', 'is', null)
         .where('root_mute.subject_did', 'is', null)
 
       const postsSelect = postsQuery.select([
+        'post.uri as uri',
+        'post.cid as cid',
+        sql<string>`null`.as('post_uri'),
+        'post.author_did as subject_did',
+        'post.indexed_at as indexed_at',
+      ])
+
+      // Your own posts and replies (same reply rule), so the feed includes you
+      // like Following does. Mutes apply here too, so muting yourself works.
+      let selfPostsQuery: SelectQueryBuilder<any, any, any> = db
+        .selectFrom('post')
+        .leftJoin('follow as root_follow', (join) => join
+          .onRef('root_follow.target_did', '=', 'post.reply_root_did')
+          .on('root_follow.source_did', '=', requesterDid))
+        .leftJoin('feed_subject_settings as author_mute', (join) => join
+          .on('author_mute.actor_did', '=', requesterDid)
+          .on('author_mute.shortname', '=', shortname)
+          .onRef('author_mute.subject_did', '=', 'post.author_did')
+          .on('author_mute.muted', '=', true))
+        .leftJoin('feed_subject_settings as root_mute', (join) => join
+          .on('root_mute.actor_did', '=', requesterDid)
+          .on('root_mute.shortname', '=', shortname)
+          .onRef('root_mute.subject_did', '=', 'post.reply_root_did')
+          .on('root_mute.muted', '=', true))
+        .where('post.author_did', '=', requesterDid)
+        .where((eb) => eb('post.reply_parent_uri', 'is', null)
+          .or('root_follow.target_did', 'is not', null)
+          .or('post.reply_root_did', '=', requesterDid))
+        .where('author_mute.subject_did', 'is', null)
+        .where('root_mute.subject_did', 'is', null)
+
+      const selfPostsSelect = selfPostsQuery.select([
         'post.uri as uri',
         'post.cid as cid',
         sql<string>`null`.as('post_uri'),
@@ -86,7 +119,32 @@ export const handler = async (ctx: AppContext, params: QueryParams, requesterDid
         'repost.indexed_at as indexed_at',
       ])
 
-      return postsSelect.unionAll(repostsSelect)
+      // Your own reposts — mutes apply, so muting yourself / hiding your reposts
+      // works.
+      const selfRepostsSelect = db
+        .selectFrom('repost')
+        .leftJoin('feed_subject_settings as repost_mute', (join) => join
+          .on('repost_mute.actor_did', '=', requesterDid)
+          .on('repost_mute.shortname', '=', shortname)
+          .onRef('repost_mute.subject_did', '=', 'repost.author_did')
+          .on((eb) => eb.or([
+            eb('repost_mute.muted', '=', true),
+            eb('repost_mute.hide_reposts', '=', true),
+          ])))
+        .where('repost_mute.subject_did', 'is', null)
+        .where('repost.author_did', '=', requesterDid)
+        .select([
+          'repost.uri as uri',
+          'repost.cid as cid',
+          'repost.post_uri as post_uri',
+          'repost.author_did as subject_did',
+          'repost.indexed_at as indexed_at',
+        ])
+
+      return postsSelect
+        .unionAll(selfPostsSelect)
+        .unionAll(repostsSelect)
+        .unionAll(selfRepostsSelect)
     })
     .selectFrom('entries')
     .selectAll()

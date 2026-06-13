@@ -241,17 +241,19 @@ export const webRouter = (ctx: AppContext) => {
       return res.status(400).json({ error: 'muted and hide_reposts must be booleans' })
     }
 
-    // following-minus only shows your follows, so a mute is only meaningful for
-    // an account you follow.
-    const existingFollow = await ctx.db
-      .selectFrom('follow')
-      .select('uri')
-      .where('source_did', '=', agent.did!!)
-      .where('target_did', '=', did)
-      .executeTakeFirst()
+    // following-minus shows your follows and yourself, so a mute is meaningful
+    // for an account you follow or your own — but not for anyone else.
+    if (did !== agent.did!!) {
+      const existingFollow = await ctx.db
+        .selectFrom('follow')
+        .select('uri')
+        .where('source_did', '=', agent.did!!)
+        .where('target_did', '=', did)
+        .executeTakeFirst()
 
-    if (!existingFollow) {
-      return res.status(400).json({ error: 'You must follow this user to mute them' })
+      if (!existingFollow) {
+        return res.status(400).json({ error: 'You must follow this user to mute them' })
+      }
     }
 
     if (!muted && !hide_reposts) {
