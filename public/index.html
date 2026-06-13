@@ -10,7 +10,7 @@
     <!-- Login View -->
     <div id="login-view" style="display: none">
         <div class="card">
-            <h1>Highline Bluesky Feeds - settings</h1>
+            <h1>Highline Feeds - settings</h1>
             <p>You need to identify your account through Bluesky or your PDS to access your settings.</p>
             <form id="login-form">
                 <input
@@ -32,7 +32,7 @@
         <div class="card">
             <div class="header-content">
                 <div>
-                    <h1>Highline Bluesky Feeds - settings</h1>
+                    <h1>Highline Feeds - settings</h1>
                     <p class="user-info">Logged in as <span id="user-handle"></span></p>
                 </div>
                 <form id="logout-form">
@@ -41,6 +41,13 @@
             </div>
         </div>
 
+        <!-- Settings tabs -->
+        <div class="tabs" role="tablist">
+            <button type="button" class="tab-button active" data-tab="highline" role="tab">Highline ⬆️ and Highline ⬇️</button>
+            <button type="button" class="tab-button" data-tab="following-minus" role="tab">Following ➖</button>
+        </div>
+
+        <div id="tab-highline" class="tab-panel">
         <!-- Feed Settings -->
         <div class="card">
             <h2>Feed Settings</h2>
@@ -136,6 +143,33 @@
                 </form>
             </div>
         </div>
+        </div><!-- /tab-highline -->
+
+        <div id="tab-following-minus" class="tab-panel" hidden>
+        <!-- Following Minus mutes -->
+        <div class="card">
+            <h2>Muted Accounts</h2>
+            <p class="setting-description">For the Following ➖ feed: hide an account's reposts, or hide the account entirely. You can also set these from the app with "show less like this".</p>
+
+            <div id="mutes-list" class="scores-list">
+                <div class="empty-state">Loading...</div>
+            </div>
+
+            <div class="add-score-section">
+                <h3>Add Muted Account</h3>
+                <form id="add-mute-form">
+                    <div class="form-row">
+                        <input type="text" id="mute-handle" name="handle" placeholder="Enter handle (e.g., alice.bsky.social)" required>
+                        <select id="mute-level" name="level" class="sort-select">
+                            <option value="hide_reposts">Hide reposts</option>
+                            <option value="muted">Hide all</option>
+                        </select>
+                        <button type="submit" class="primary-button">Add</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        </div><!-- /tab-following-minus -->
     </div>
 </div>
 

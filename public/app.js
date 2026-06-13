@@ -19,6 +19,7 @@ async function loadUserData() {
     showSettingsView()
 
     await loadActorScores()
+    await loadMutes()
   } catch (error) {
     console.error('Error loading user data:', error)
     showLoginView()
@@ -27,7 +28,9 @@ async function loadUserData() {
 
 async function resolveDidToHandle(did) {
   try {
-    const response = await fetch(`https://bsky.social/xrpc/com.atproto.repo.describeRepo?repo=${encodeURIComponent(did)}`)
+    // Resolve via the appview (not a specific PDS), so it works for accounts on
+    // any PDS, not just bsky.social.
+    const response = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`)
     if (response.ok) {
       const data = await response.json()
       return data.handle || null
@@ -542,6 +545,149 @@ document.addEventListener('DOMContentLoaded', () => {
   if (sortSelect) {
     sortSelect.addEventListener('change', renderActorScores)
   }
+})
+
+// --- Following Minus mutes ---
+
+let currentMutes = []
+
+async function loadMutes() {
+  try {
+    const response = await fetch('/api/following-minus/mutes')
+    if (!response.ok) return
+    const data = await response.json()
+
+    if (data.mutes && data.mutes.length > 0) {
+      const dids = data.mutes.map(m => m.did)
+      const handleMap = await resolveMultipleDidsToHandles(dids)
+      currentMutes = data.mutes.map(m => ({ ...m, handle: handleMap[m.did] }))
+    } else {
+      currentMutes = []
+    }
+
+    renderMutes()
+  } catch (error) {
+    console.error('Error loading mutes:', error)
+  }
+}
+
+function renderMutes() {
+  const list = document.getElementById('mutes-list')
+
+  if (currentMutes.length === 0) {
+    list.innerHTML = '<div class="empty-state">No muted accounts</div>'
+    return
+  }
+
+  const sorted = [...currentMutes].sort((a, b) =>
+    (a.handle || a.did).toLowerCase().localeCompare((b.handle || b.did).toLowerCase()))
+
+  list.innerHTML = sorted.map(m => {
+    const displayName = m.handle ? `@${m.handle}` : m.did
+    const level = m.muted ? 'muted' : 'hide_reposts'
+    const label = m.muted ? 'Hidden entirely' : 'Reposts hidden'
+    return `
+      <div class="score-item" data-did="${m.did}">
+        <div class="score-info">
+          <span class="score-value negative">${label}</span>
+          <span class="score-handle">${displayName}</span>
+        </div>
+        <div class="score-actions">
+          <select class="sort-select mute-level-select" data-did="${m.did}">
+            <option value="hide_reposts" ${level === 'hide_reposts' ? 'selected' : ''}>Hide reposts</option>
+            <option value="muted" ${level === 'muted' ? 'selected' : ''}>Hide all</option>
+          </select>
+          <button class="secondary-button remove-mute" data-did="${m.did}">Remove</button>
+        </div>
+      </div>
+    `
+  }).join('')
+
+  list.querySelectorAll('.mute-level-select').forEach(sel => sel.addEventListener('change', handleChangeMuteLevel))
+  list.querySelectorAll('.remove-mute').forEach(btn => btn.addEventListener('click', handleRemoveMute))
+}
+
+async function setMute(did, muted, hide_reposts) {
+  const response = await fetch('/api/following-minus/mutes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ did, muted, hide_reposts })
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.error || 'Request failed')
+  }
+}
+
+async function handleChangeMuteLevel(event) {
+  const did = event.target.dataset.did
+  const level = event.target.value
+  try {
+    await setMute(did, level === 'muted', level === 'hide_reposts')
+    showToast('Mute updated')
+    await loadMutes()
+  } catch (error) {
+    showToast(error.message, true)
+    await loadMutes() // revert the select to the stored state
+  }
+}
+
+async function handleRemoveMute(event) {
+  const did = event.target.dataset.did
+  const item = event.target.closest('.score-item')
+  const handle = item.querySelector('.score-handle').textContent
+
+  if (!confirm(`Remove mute for ${handle}?`)) return
+
+  try {
+    await setMute(did, false, false)
+    showToast('Mute removed')
+    await loadMutes()
+  } catch (error) {
+    showToast(error.message, true)
+  }
+}
+
+document.getElementById('add-mute-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const handle = document.getElementById('mute-handle').value.trim()
+  const level = document.getElementById('mute-level').value
+
+  if (!handle) {
+    showToast('Please enter a handle', true)
+    return
+  }
+
+  try {
+    const resolveResponse = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`)
+    if (!resolveResponse.ok) {
+      showToast('Handle not found', true)
+      return
+    }
+    const { did } = await resolveResponse.json()
+    if (!did) {
+      showToast('Handle not found', true)
+      return
+    }
+
+    await setMute(did, level === 'muted', level === 'hide_reposts')
+    showToast('Muted account added')
+    document.getElementById('add-mute-form').reset()
+    await loadMutes()
+  } catch (error) {
+    showToast(error.message || 'Failed to add mute', true)
+  }
+})
+
+// Settings tabs
+document.querySelectorAll('.tab-button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab
+    document.querySelectorAll('.tab-button').forEach(b => b.classList.toggle('active', b === btn))
+    document.querySelectorAll('.tab-panel').forEach(p => {
+      p.hidden = p.id !== `tab-${tab}`
+    })
+  })
 })
 
 // Load initial data

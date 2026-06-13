@@ -8,6 +8,8 @@ import { AppContext } from '../config'
 import { CatchupSettings, getSettingsWithDefaults, updateSettings } from '../algos/catchup-common'
 import { sessionHasAdminPermission } from './utils'
 import { allShortnames } from '../algos'
+import * as followingMinus from '../algos/following-minus'
+import { sql } from 'kysely'
 
 type Session = { did: string }
 
@@ -193,6 +195,92 @@ export const webRouter = (ctx: AppContext) => {
         follows: true
       })
     }
+  }))
+
+  // The viewer's following-minus mutes: accounts whose posts and/or reposts are
+  // hidden from that feed.
+  router.get('/api/following-minus/mutes', handler(async (req, res) => {
+    const agent = await getSessionAgent(req, res, ctx)
+    if (!agent) {
+      return res.status(401).json({ error: 'Not logged in' })
+    }
+
+    const mutes = await ctx.db
+      .selectFrom('feed_subject_settings')
+      .select(['subject_did', 'muted', 'hide_reposts'])
+      .where('actor_did', '=', agent.did!!)
+      .where('shortname', '=', followingMinus.shortname)
+      .where((eb) => eb.or([eb('muted', '=', true), eb('hide_reposts', '=', true)]))
+      .orderBy('subject_did', 'asc')
+      .execute()
+
+    return res.json({
+      mutes: mutes.map((m) => ({
+        did: m.subject_did,
+        muted: m.muted,
+        hide_reposts: m.hide_reposts,
+      })),
+    })
+  }))
+
+  // Set or clear a following-minus mute. Unlike the "show less" interaction
+  // (which only escalates), this sets the exact state, so it's also the un-mute
+  // path: muted=false, hide_reposts=false removes the row.
+  router.post('/api/following-minus/mutes', handler(async (req, res) => {
+    const agent = await getSessionAgent(req, res, ctx)
+    if (!agent) {
+      return res.status(401).json({ error: 'Not logged in' })
+    }
+
+    const { did, muted, hide_reposts } = req.body
+
+    if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
+      return res.status(400).json({ error: 'Invalid DID' })
+    }
+    if (typeof muted !== 'boolean' || typeof hide_reposts !== 'boolean') {
+      return res.status(400).json({ error: 'muted and hide_reposts must be booleans' })
+    }
+
+    // following-minus only shows your follows, so a mute is only meaningful for
+    // an account you follow.
+    const existingFollow = await ctx.db
+      .selectFrom('follow')
+      .select('uri')
+      .where('source_did', '=', agent.did!!)
+      .where('target_did', '=', did)
+      .executeTakeFirst()
+
+    if (!existingFollow) {
+      return res.status(400).json({ error: 'You must follow this user to mute them' })
+    }
+
+    if (!muted && !hide_reposts) {
+      await ctx.db
+        .deleteFrom('feed_subject_settings')
+        .where('actor_did', '=', agent.did!!)
+        .where('subject_did', '=', did)
+        .where('shortname', '=', followingMinus.shortname)
+        .execute()
+    } else {
+      await ctx.db
+        .insertInto('feed_subject_settings')
+        .values({
+          actor_did: agent.did!!,
+          subject_did: did,
+          shortname: followingMinus.shortname,
+          muted,
+          hide_reposts,
+          updated_at: new Date(),
+        })
+        .onDuplicateKeyUpdate({
+          muted: sql`VALUES(muted)`,
+          hide_reposts: sql`VALUES(hide_reposts)`,
+          updated_at: sql`VALUES(updated_at)`,
+        })
+        .execute()
+    }
+
+    return res.json({ success: true })
   }))
 
   router.post('/jobs/populate-actor/', handler(async (req, res) => {

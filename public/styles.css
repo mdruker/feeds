@@ -681,3 +681,29 @@ button {
         align-items: flex-start;
     }
 }
+/* Settings tabs */
+.tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: var(--spacing-unit);
+}
+
+.tab-button {
+    padding: 10px 18px;
+    background: var(--card-background);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1em;
+    cursor: pointer;
+}
+
+.tab-button.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.tab-panel[hidden] {
+    display: none;
+}
