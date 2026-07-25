@@ -12,6 +12,16 @@ export const createDb = (): Database => {
         host: process.env.DATABASE_URL,
         user: process.env.MYSQL_USER,
         password: process.env.MYSQL_USER_PASSWORD,
+        // Guard against the firehose consumer hanging forever on a dead
+        // connection (a query that never returns and never errors, so the retry
+        // loop can't catch it). TCP keepalive makes the OS detect a broken peer
+        // and surface a socket error, which our retry then handles. Recycling
+        // idle connections well before the server's wait_timeout avoids reusing
+        // a connection the server has already closed.
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 10_000, // start probing after 10s idle
+        idleTimeout: 60_000, // close a pooled connection after 60s idle
+        maxIdle: 10,
         typeCast(field, next) {
           if (field.type === 'TINY' && field.length === 1) {
             return field.string() === '1'
