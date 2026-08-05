@@ -13,6 +13,10 @@ const JETSTREAM_ENDPOINT = 'wss://jetstream1.us-west.bsky.network/subscribe'
 const BATCH_SIZE = 10000
 const MAX_WAIT_MS = 10000
 
+// Jetstream is high volume, so a stretch of total silence means the connection
+// is dead even if the socket still looks fine. See the reconnect check below.
+const IDLE_RECONNECT_MS = 30000
+
 export abstract class FirehoseSubscriptionBase {
   public jetstream: Jetstream
   private stopping = false
@@ -28,6 +32,7 @@ export abstract class FirehoseSubscriptionBase {
     this.stopped = new Promise((resolve) => { this.onStopped = resolve })
     let lastSuccessfulCursor = await this.getCursor()
     const eventQueue = new Queue<JetstreamEvent>()
+    let lastEventAt = performance.now()
 
     this.jetstream = new Jetstream({
       ws: WebSocket,
@@ -48,6 +53,7 @@ export abstract class FirehoseSubscriptionBase {
     })
 
     this.jetstream.on('commit', (event) => {
+      lastEventAt = performance.now()
       eventQueue.enqueue({
         timeUs: event.time_us,
         identityEvent: undefined,
@@ -61,6 +67,7 @@ export abstract class FirehoseSubscriptionBase {
     })
 
     this.jetstream.on('identity', (event) => {
+      lastEventAt = performance.now()
       eventQueue.enqueue({
         timeUs: event.time_us,
         identityEvent: event,
@@ -84,24 +91,25 @@ export abstract class FirehoseSubscriptionBase {
         }
 
         const event = eventQueue.dequeue()
-        if (!event) continue
+        if (event) {
+          let batchRaceWon = false
+          await semaphore.acquire().then(async ([value, release]) => {
+            if (opsByType.opsProcessed === 0) {
+              console.log(`Starting firehose batch at time ${event.timeUs}`)
+              t0 = performance.now()
+            }
+            addOpsByType(event, opsByType)
 
-        let batchRaceWon = false
-        await semaphore.acquire().then(async ([value, release]) => {
-          if (opsByType.opsProcessed === 0) {
-            console.log(`Starting firehose batch at time ${event.timeUs}`)
-            t0 = performance.now()
+            batchRaceWon = true
+            release()
+          })
+          if (!batchRaceWon) {
+            console.log(`Lost a race to process a batch`)
           }
-          addOpsByType(event, opsByType)
-
-          batchRaceWon = true
-          release()
-        })
-        if (!batchRaceWon) {
-          console.log(`Lost a race to process a batch`)
         }
 
-        if (opsByType.opsProcessed >= BATCH_SIZE || performance.now() - t0 > MAX_WAIT_MS) {
+        if (opsByType.opsProcessed > 0
+          && (opsByType.opsProcessed >= BATCH_SIZE || performance.now() - t0 > MAX_WAIT_MS)) {
           let t1 = performance.now()
 
           // handleOpsWithRetry only rejects on shutdown — errors are retried
@@ -131,6 +139,23 @@ export abstract class FirehoseSubscriptionBase {
           } else {
             console.log(`Lost a race to handle a batch`)
           }
+        }
+
+        if (!this.stopping
+          && eventQueue.size === 0
+          && performance.now() - lastEventAt > IDLE_RECONNECT_MS) {
+          const idleSeconds = Math.round((performance.now() - lastEventAt) / 1000)
+          console.log(`No jetstream events for ${idleSeconds}s — reconnecting`)
+          lastEventAt = performance.now()
+          // Resume from the last committed batch: anything after it rolled back,
+          // and re-delivered records are idempotent.
+          this.jetstream.cursor = lastSuccessfulCursor
+          try {
+            this.jetstream.close()
+          } catch (err) {
+            console.error('jetstream close:', err)
+          }
+          this.jetstream.start()
         }
       }
     }

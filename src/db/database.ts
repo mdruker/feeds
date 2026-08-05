@@ -21,7 +21,10 @@ export const createDb = (): Database => {
         enableKeepAlive: true,
         keepAliveInitialDelay: 10_000, // start probing after 10s idle
         idleTimeout: 60_000, // close a pooled connection after 60s idle
-        maxIdle: 10,
+        // Must stay below connectionLimit (default 10) — mysql2 only starts the
+        // idle reaper when maxIdle < connectionLimit, so equal values silently
+        // disable idleTimeout entirely.
+        maxIdle: 5,
         typeCast(field, next) {
           if (field.type === 'TINY' && field.length === 1) {
             return field.string() === '1'
