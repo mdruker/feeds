@@ -1,7 +1,7 @@
 import { ids } from '../lexicon/lexicons'
 import { Database } from '../db/database'
 import { Jetstream, CommitType, CommitEvent, IdentityEvent } from '@skyware/jetstream'
-import WebSocket, { CLOSED, OPEN } from 'ws'
+import WebSocket, { OPEN } from 'ws'
 import { Semaphore } from 'async-mutex'
 import Queue from 'yocto-queue'
 import { sql } from 'kysely'
@@ -19,6 +19,7 @@ const IDLE_RECONNECT_MS = 30000
 
 export abstract class FirehoseSubscriptionBase {
   public jetstream: Jetstream
+  private closedByUs = false
   private stopping = false
   private stopped?: Promise<void>
   private onStopped?: () => void
@@ -52,6 +53,14 @@ export abstract class FirehoseSubscriptionBase {
       console.log(`Jetstream error at ${cursor}`, error)
     })
 
+    const throttleIfBacklogged = () => {
+      if (eventQueue.size > BATCH_SIZE * 3 && this.jetstream.ws?.readyState == OPEN) {
+        console.log('Too many events in queue, closing jetstream')
+        this.closedByUs = true
+        this.jetstream.close()
+      }
+    }
+
     this.jetstream.on('commit', (event) => {
       lastEventAt = performance.now()
       eventQueue.enqueue({
@@ -60,10 +69,7 @@ export abstract class FirehoseSubscriptionBase {
         commitEvent: event
       })
 
-      if (eventQueue.size > BATCH_SIZE * 3 && this.jetstream.ws?.readyState == OPEN) {
-        console.log('Too many events in queue, closing jetstream')
-        this.jetstream.close()
-      }
+      throttleIfBacklogged()
     })
 
     this.jetstream.on('identity', (event) => {
@@ -74,10 +80,7 @@ export abstract class FirehoseSubscriptionBase {
         commitEvent: undefined
       })
 
-      if (eventQueue.size > BATCH_SIZE * 3 && this.jetstream.ws?.readyState == OPEN) {
-        console.log('Too many events in queue, closing jetstream')
-        this.jetstream.close()
-      }
+      throttleIfBacklogged()
     })
 
     const processQueue = async () => {
@@ -133,8 +136,10 @@ export abstract class FirehoseSubscriptionBase {
             await this.updateDbCursorAndCheckForRestart(lastSuccessfulCursor!!)
             console.log(`Processed batch in ${Math.round(t1 - t0)} ms (fetching) and ${Math.round(t2 - t1)} ms (handling), updated cursor to ${lastSuccessfulCursor}`)
 
-            if (this.jetstream.ws?.readyState === CLOSED && eventQueue.size < BATCH_SIZE) {
-              this.jetstream.start()
+            // partysocket reconnects on its own after a drop, and its
+            // readyState reads CLOSED for the 1-10s it spends backing off
+            if (this.closedByUs && eventQueue.size < BATCH_SIZE) {
+              this.restartJetstream()
             }
           } else {
             console.log(`Lost a race to handle a batch`)
@@ -150,12 +155,7 @@ export abstract class FirehoseSubscriptionBase {
           // Resume from the last committed batch: anything after it rolled back,
           // and re-delivered records are idempotent.
           this.jetstream.cursor = lastSuccessfulCursor
-          try {
-            this.jetstream.close()
-          } catch (err) {
-            console.error('jetstream close:', err)
-          }
-          this.jetstream.start()
+          this.restartJetstream()
         }
       }
     }
@@ -171,6 +171,18 @@ export abstract class FirehoseSubscriptionBase {
     } finally {
       this.onStopped?.()
     }
+  }
+
+  // Closing first clears partysocket's reconnect flag, so existing instance
+  // can't quietly reconnect.
+  private restartJetstream(): void {
+    try {
+      this.jetstream.close()
+    } catch (err) {
+      console.error('jetstream close:', err)
+    }
+    this.closedByUs = false
+    this.jetstream.start()
   }
 
   private async transactionalHandleOpsWithRetry(ops: OperationsByType): Promise<void> {
@@ -227,11 +239,8 @@ export abstract class FirehoseSubscriptionBase {
         .set('restart', undefined)
         .execute()
 
-      this.jetstream.close()
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
       this.jetstream.cursor = dbCursor.cursor
-      this.jetstream.start()
+      this.restartJetstream()
       await new Promise((resolve) => setTimeout(resolve, 50))
     }
 
