@@ -28,7 +28,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "iron-session": "^8.0.4",
-    "kysely": "^0.27.5",
+    "kysely": "^0.29.7",
     "multiformats": "^13.3.1",
     "mysql2": "^3.14.2",
     "ws": "^8.18.0",

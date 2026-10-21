@@ -1,4 +1,5 @@
-import { Kysely, Migrator, MysqlDialect, sql } from 'kysely'
+import { Kysely, MysqlDialect, sql } from 'kysely'
+import { Migrator } from 'kysely/migration'
 import { createPool } from 'mysql2'
 import { DatabaseSchema } from './schema'
 import { migrationProvider } from './migrations'

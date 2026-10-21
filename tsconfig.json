@@ -8,7 +8,7 @@
     "module": "ESNext",
     "target": "ESNext",
     "esModuleInterop": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "alwaysStrict": true,
     "allowUnreachableCode": false,
     "strictNullChecks": true,
