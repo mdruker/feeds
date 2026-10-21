@@ -1,4 +1,8 @@
 import { ids } from '../lexicon/lexicons'
+import type { Record as PostRecord } from '../lexicon/types/app/bsky/feed/post'
+import type { Record as RepostRecord } from '../lexicon/types/app/bsky/feed/repost'
+import type { Record as LikeRecord } from '../lexicon/types/app/bsky/feed/like'
+import type { Record as FollowRecord } from '../lexicon/types/app/bsky/graph/follow'
 import { Database } from '../db/database'
 import { Jetstream, CommitType, CommitEvent, IdentityEvent } from '@skyware/jetstream'
 import WebSocket, { OPEN } from 'ws'
@@ -18,7 +22,7 @@ const MAX_WAIT_MS = 10000
 const IDLE_RECONNECT_MS = 30000
 
 export abstract class FirehoseSubscriptionBase {
-  public jetstream: Jetstream
+  public jetstream!: Jetstream // assigned in run()
   private closedByUs = false
   private stopping = false
   private stopped?: Promise<void>
@@ -342,10 +346,10 @@ function opsByTypeClean() {
 }
 
 export type OperationsByType = {
-  posts: Operations<any>
-  reposts: Operations<any>
-  likes: Operations<any>
-  follows: Operations<any>
+  posts: Operations<PostRecord>
+  reposts: Operations<RepostRecord>
+  likes: Operations<LikeRecord>
+  follows: Operations<FollowRecord>
   identityEvents: IdentityOp[]
   cursor: number | undefined
   opsProcessed: number

@@ -21,7 +21,7 @@ import { CleanupService } from './util/cleanup'
 
 export class FeedGenerator {
   public app: express.Application
-  public server: http.Server
+  public server!: http.Server // assigned in start()
   public db: Database
   public jobManager: JobManager
   public jobWorker: JobWorker
