@@ -26,7 +26,7 @@
     "@skyware/jetstream": "^0.2.5",
     "async-mutex": "^0.5.0",
     "dotenv": "^18.0.8",
-    "express": "^4.21.2",
+    "express": "^5.3.0",
     "iron-session": "^9.0.1",
     "kysely": "^0.29.7",
     "multiformats": "^13.3.1",
@@ -37,7 +37,7 @@
   "devDependencies": {
     "@atproto/lex-cli": "^0.9.7",
     "@inquirer/prompts": "^8.7.4",
-    "@types/express": "^4.17.21",
+    "@types/express": "^5.0.6",
     "@types/node": "24",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
