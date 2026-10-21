@@ -6,7 +6,7 @@ const run = async () => {
   if (!process.env.ENVIRONMENT) {
     process.env.ENVIRONMENT = Env.development
   }
-  dotenv.config({path: '.env.' + process.env.ENVIRONMENT})
+  dotenv.config({ path: '.env.' + process.env.ENVIRONMENT, quiet: true })
 
   const server = FeedGenerator.create({
     port: maybeInt(process.env.FEEDGEN_PORT)!!,

@@ -10,7 +10,7 @@ import { createDb, migrateToLatest } from './db/database'
 if (!process.env.ENVIRONMENT) {
   process.env.ENVIRONMENT = Env.development
 }
-dotenv.config({ path: '.env.' + process.env.ENVIRONMENT })
+dotenv.config({ path: '.env.' + process.env.ENVIRONMENT, quiet: true })
 
 const run = async () => {
   const db = createDb()

@@ -5,7 +5,7 @@ import { ids } from '../src/lexicon/lexicons'
 import { input, password, confirm } from '@inquirer/prompts'
 
 const run = async () => {
-  dotenv.config()
+  dotenv.config({ quiet: true })
 
   if (!process.env.FEEDGEN_PUBLISHER_HANDLE) {
     throw new Error('Please provide a publisher handle in the corresponding .env file')
