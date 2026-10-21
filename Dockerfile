@@ -12,7 +12,6 @@ WORKDIR /app
 ENV NODE_ENV="production"
 ARG YARN_VERSION=1.22.22
 RUN npm install -g yarn@$YARN_VERSION --force
-RUN npm install -g tsx
 
 # Throw-away build stage to reduce size of final image
 FROM base AS build
@@ -43,4 +42,5 @@ COPY --from=build /app /app
 
 # Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
-CMD [ "yarn", "run", "start" ]
+# node as PID 1 (not via yarn) so SIGTERM reaches the app's graceful drain directly.
+CMD [ "node", "dist/src/index.js" ]

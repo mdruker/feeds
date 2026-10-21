@@ -7,4 +7,4 @@ Dockerfile
 .DS_Store
 .env
 .env.*
-.github
+.githubdist

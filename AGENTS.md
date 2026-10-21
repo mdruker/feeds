@@ -18,3 +18,10 @@ instance boot.
 The `ROLE` env var selects **web** (HTTP serving, N instances) vs **worker** (jetstream
 consumer + jobs, exactly one), with `all` as the single-process default for local. See the
 [README](README.md#architecture-serving-vs-ingest) for the model and deploy choreography.
+
+## Build and run
+
+TypeScript is compiled with `tsc` to `dist/` and run on plain `node` (`yarn dev` locally,
+`yarn test` for tests). Don't reintroduce `tsx` or another runtime loader: tsx's require
+hook mis-resolves imports inside ESM-only dependencies (the newer `@atproto/lex-*`
+packages), which typechecks fine and then crashes at startup.

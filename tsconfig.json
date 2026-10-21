@@ -5,16 +5,17 @@
       "ESNext",
     ],
     "outDir": "dist",
-    "module": "ESNext",
+    "rootDir": ".",
+    "module": "nodenext",
     "target": "ESNext",
     "esModuleInterop": true,
-    "moduleResolution": "bundler",
+    "moduleResolution": "nodenext",
     "alwaysStrict": true,
     "allowUnreachableCode": false,
     "strictNullChecks": true,
     "skipLibCheck": true
   },
-  "include": ["./src/**/*.ts"],
+  "include": ["./src/**/*.ts", "./scripts/**/*.ts", "./test/**/*.ts"],
   "exclude": [
     "node_modules"
   ]

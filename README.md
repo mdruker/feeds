@@ -6,7 +6,7 @@ This started as a fork from https://github.com/bluesky-social/feed-generator but
 
 This powers two Highline feeds and an Only Links feed. It runs as Docker containers on a VPS, backed by MySQL.
 
-Feeds are published/unpublished with the scripts configured in `package.json`, e.g. `yarn publishStaging`.
+Run locally with `yarn dev` (compiles with `tsc`, runs on plain Node). Feeds are published/unpublished with the scripts configured in `package.json`, e.g. `yarn publishStaging`.
 
 To update the cursor, update the corresponding row in sub_state with the new microsecond cursor value and `restart = 1`.
 
