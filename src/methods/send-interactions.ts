@@ -37,6 +37,7 @@ export default function (server: Server, ctx: AppContext) {
         ctx.cfg.serviceDid,
         ctx.didResolver,
       )
+      let t0 = performance.now()
       const isAdmin = await hasAdminPermission(ctx, requesterDid)
 
       for (let interaction of input.body.interactions) {
@@ -113,6 +114,9 @@ export default function (server: Server, ctx: AppContext) {
       await removeSeenNewsPosts(requesterDid, input.body.interactions)
 
       await trackSeenHighlinePosts(requesterDid, input.body.interactions)
+
+      let t1 = performance.now()
+      console.log(`Handled ${input.body.interactions.length} interactions in ${Math.round(t1 - t0)} ms for ${requesterDid} (${summarizeEvents(input.body.interactions)})`)
 
       return {
         encoding: 'application/json',
@@ -216,4 +220,14 @@ export default function (server: Server, ctx: AppContext) {
 
     debugLog(`Tracked ${seenPosts.length} seen Highline posts for ${requesterDid}`)
   }
+}
+
+// e.g. "interactionSeen: 12, requestLess: 1"
+function summarizeEvents(interactions: { event?: string }[]): string {
+  const counts = new Map<string, number>()
+  for (const interaction of interactions) {
+    const event = interaction.event?.replace('app.bsky.feed.defs#', '') ?? 'unknown'
+    counts.set(event, (counts.get(event) ?? 0) + 1)
+  }
+  return [...counts].map(([event, count]) => `${event}: ${count}`).join(', ')
 }
