@@ -36,6 +36,7 @@
     "yocto-queue": "^1.1.1"
   },
   "devDependencies": {
+    "@atproto/crypto": "^0.5.7",
     "@atproto/lex-cli": "^0.10.16",
     "@inquirer/prompts": "^8.7.4",
     "@types/express": "^5.0.6",

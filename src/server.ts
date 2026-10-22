@@ -52,16 +52,16 @@ export class FeedGenerator {
     this.lifecycle = lifecycle
   }
 
-  static create(cfg: Config) {
+  // `deps` lets tests swap in fakes for the DB and DID resolution.
+  static create(cfg: Config, deps: Partial<Pick<AppContext, 'db' | 'didResolver'>> = {}) {
     const app = express()
-    const db = createDb()
+    const db = deps.db ?? createDb()
     const lifecycle = { shuttingDown: false }
     const firehose = new FirehoseSubscription(db)
-    const didCache = new MemoryCache()
-    const didResolver = new DidResolver({
+    const didResolver = deps.didResolver ?? new DidResolver({
       timeout: 20000,
       plcUrl: 'https://plc.directory',
-      didCache,
+      didCache: new MemoryCache(),
     })
 
     const jobManager = new JobManager(db)
@@ -86,9 +86,6 @@ export class FeedGenerator {
       oauthClient,
       jobManager
     }
-
-    app.use(express.json())
-    app.use(express.urlencoded({ extended: true }))
 
     // Liveness: the process is up and serving HTTP. Always 200 once listening;
     // used by the container healthcheck (incl. the worker, which isn't on the edge).
@@ -120,6 +117,12 @@ export class FeedGenerator {
 
     describeGenerator(server, ctx)
     app.use(server.xrpc.router)
+
+    // For the web routes only. xrpc parses its own request bodies and fails if
+    // one has already been read, so these must stay below its router.
+    app.use(express.json())
+    app.use(express.urlencoded({ extended: true }))
+
     app.use(wellKnown(ctx))
     app.use(webRouter(ctx))
 
