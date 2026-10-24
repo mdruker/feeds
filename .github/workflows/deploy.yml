@@ -8,16 +8,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
-concurrency:
-  group: deploy-feeds
-  cancel-in-progress: true
-
 env:
   IMAGE: ghcr.io/mdruker/feeds
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    concurrency:
+      group: build-feeds
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
@@ -33,6 +32,9 @@ jobs:
   build-and-push:
     needs: test
     runs-on: ubuntu-latest
+    concurrency:
+      group: build-feeds
+      cancel-in-progress: true
     permissions:
       contents: read
       packages: write
@@ -77,6 +79,9 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-feeds
+      cancel-in-progress: false
     steps:
       - name: Redeploy on the box
         uses: appleboy/ssh-action@v1
