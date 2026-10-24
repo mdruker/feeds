@@ -1,6 +1,10 @@
 import { FirehoseSubscriptionBase, OperationsByType } from './util/subscription'
 import { isLink } from './lexicon/types/app/bsky/richtext/facet'
 import { isMain as isExternalEmbed } from './lexicon/types/app/bsky/embed/external'
+import { isMain as isRecordEmbed } from './lexicon/types/app/bsky/embed/record'
+import { isMain as isRecordWithMediaEmbed } from './lexicon/types/app/bsky/embed/recordWithMedia'
+import { Record as PostRecord } from './lexicon/types/app/bsky/feed/post'
+import { ids } from './lexicon/lexicons'
 import { Database } from './db/database'
 import { Post, Repost } from './db/schema'
 import { PostProperties } from './util/properties'
@@ -182,9 +186,12 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     let postsToRepost = ops.reposts.creates
       .filter((x) => x.record.subject != null)
       .map((x) => x.record.subject.uri)
+    let postsToQuote = ops.posts.creates
+      .map((x) => quotedPostUri(x.record.embed))
+      .filter((x) => x != null)
 
     // Calculate engagement count increments
-    let postsToUpdateEngagement = postsToUpdateReplyCounts.concat(postsToLike).concat(postsToRepost)
+    let postsToUpdateEngagement = postsToUpdateReplyCounts.concat(postsToLike, postsToRepost, postsToQuote)
 
     if (postsToUpdateEngagement.length > 0) {
       // Count how many times each post URI appears in engagement events
@@ -273,6 +280,14 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
 
     debugLog(`Processed ${repostsToCreate.length} repost creates, ${repostsToDelete.length} repost deletes in ${Math.round(performance.now() - t0)}`)
   }
+}
+
+// Record embeds can also quote lists, feeds, and starter packs.
+export function quotedPostUri(embed: PostRecord['embed']): string | undefined {
+  const uri = isRecordEmbed(embed) ? embed.record.uri
+    : isRecordWithMediaEmbed(embed) ? embed.record.record.uri
+    : undefined
+  return uri?.includes(`/${ids.AppBskyFeedPost}/`) ? uri : undefined
 }
 
 function hostnameFromUri(uri: string | undefined): string | undefined {
