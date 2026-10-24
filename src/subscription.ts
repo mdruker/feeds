@@ -142,7 +142,7 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
               facet =>
                 facet.features.some(feature =>
                   isLink(feature)))
-            || create.record.embed && isExternalEmbed(create.record.embed.$type)
+            || isExternalEmbed(create.record.embed)
             || undefined
         }
 
