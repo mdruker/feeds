@@ -43,6 +43,11 @@ export default function (server: Server, ctx: AppContext) {
       let t0 = performance.now()
 
       body = await getFeedSkeleton(ctx, requesterDid, shortname, params)
+      ctx.usage.recordFeedRequest(shortname, requesterDid, {
+        cursor: params.cursor,
+        limit: params.limit,
+        itemsServed: body.feed.length,
+      })
 
       let t1 = performance.now()
       console.log(`Returning ${body.feed.length} posts in ${Math.round(t1 - t0)} ms for ${feedUri.rkey} for ${requesterDid || '(anon)'}`)

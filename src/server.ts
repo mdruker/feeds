@@ -18,6 +18,8 @@ import path from 'node:path'
 import { JobManager } from './jobs/manager'
 import { JobWorker } from './jobs/worker'
 import { CleanupService } from './util/cleanup'
+import { UsageRecorder } from './util/usage'
+import algos from './algos'
 
 export class FeedGenerator {
   public app: express.Application
@@ -27,6 +29,7 @@ export class FeedGenerator {
   public jobWorker: JobWorker
   public firehose: FirehoseSubscription
   public cleanup: CleanupService
+  public usage: UsageRecorder
   public cfg: Config
   // Shared with the /readyz handler: flipped true on shutdown so the route
   // reports not-ready and the load balancer drains this instance.
@@ -39,6 +42,7 @@ export class FeedGenerator {
     jobWorker: JobWorker,
     firehose: FirehoseSubscription,
     cleanup: CleanupService,
+    usage: UsageRecorder,
     cfg: Config,
     lifecycle: { shuttingDown: boolean },
   ) {
@@ -48,6 +52,7 @@ export class FeedGenerator {
     this.jobWorker = jobWorker
     this.firehose = firehose
     this.cleanup = cleanup
+    this.usage = usage
     this.cfg = cfg
     this.lifecycle = lifecycle
   }
@@ -67,6 +72,7 @@ export class FeedGenerator {
     const jobManager = new JobManager(db)
     const jobWorker = new JobWorker(jobManager, db, didResolver)
     const cleanup = new CleanupService(db)
+    const usage = new UsageRecorder(db, new Set(Object.keys(algos)))
 
     const server = createServer({
       validateResponse: true,
@@ -84,7 +90,8 @@ export class FeedGenerator {
       didResolver,
       cfg,
       oauthClient,
-      jobManager
+      jobManager,
+      usage,
     }
 
     // Liveness: the process is up and serving HTTP. Always 200 once listening;
@@ -130,7 +137,7 @@ export class FeedGenerator {
 
     app.use((_req, res) => res.sendStatus(404))
 
-    return new FeedGenerator(app, db, jobManager, jobWorker, firehose, cleanup, cfg, lifecycle)
+    return new FeedGenerator(app, db, jobManager, jobWorker, firehose, cleanup, usage, cfg, lifecycle)
   }
 
   async start(): Promise<http.Server> {
@@ -163,6 +170,7 @@ export class FeedGenerator {
       console.log(`App listening on port ${this.cfg.port}`)
     })
     await events.once(this.server, 'listening')
+    this.usage.start()
 
     setInterval(() => {
       const used = process.memoryUsage()
@@ -200,6 +208,7 @@ export class FeedGenerator {
       this.server.closeIdleConnections?.()
     })
 
+    await this.usage.stop()
     this.cleanup.stop()
     await Promise.all([this.firehose.stop(), this.jobWorker.stop()])
 

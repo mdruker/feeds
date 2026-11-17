@@ -16,6 +16,7 @@ export type DatabaseSchema = {
   feed_state: FeedState
   seen_post: SeenPost
   feed_subject_settings: FeedSubjectSettings
+  feed_usage: FeedUsage
 }
 
 export type SubState = {
@@ -133,4 +134,17 @@ export type FeedSubjectSettings = {
   muted: boolean
   hide_reposts: boolean
   updated_at: Date
+}
+
+export type FeedUsage = {
+  day: string // YYYY-MM-DD, UTC
+  shortname: string
+  actor_did: string // '' for anonymous requests
+  first_pages: number
+  next_pages: number
+  items_served: number
+  seen: number
+  opens: number
+  engaged: number
+  shaped: number
 }

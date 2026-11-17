@@ -274,3 +274,27 @@ migrations['006'] = {
       .execute()
   },
 }
+
+migrations['007'] = {
+  async up(db: Kysely<unknown>) {
+    await db.schema
+      .createTable('feed_usage')
+      .addColumn('day', 'date', (col) => col.notNull())
+      .addColumn('shortname', 'varchar(255)', (col) => col.notNull())
+      .addColumn('actor_did', 'varchar(255)', (col) => col.notNull())
+      .addColumn('first_pages', 'integer', (col) => col.notNull().defaultTo(0))
+      .addColumn('next_pages', 'integer', (col) => col.notNull().defaultTo(0))
+      .addColumn('items_served', 'integer', (col) => col.notNull().defaultTo(0))
+      .addColumn('seen', 'integer', (col) => col.notNull().defaultTo(0))
+      .addColumn('opens', 'integer', (col) => col.notNull().defaultTo(0))
+      .addColumn('engaged', 'integer', (col) => col.notNull().defaultTo(0))
+      .addColumn('shaped', 'integer', (col) => col.notNull().defaultTo(0))
+      .execute()
+    await db.schema
+      .createIndex('unq_feed_usage_day_shortname_actor_did')
+      .unique()
+      .on('feed_usage')
+      .columns(['day', 'shortname', 'actor_did'])
+      .execute()
+  },
+}

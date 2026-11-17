@@ -2,6 +2,7 @@ import { Database } from './db/database'
 import { DidResolver } from '@atproto/identity'
 import { NodeOAuthClient } from '@atproto/oauth-client-node'
 import { JobManager } from './jobs/manager'
+import { UsageRecorder } from './util/usage'
 
 export type AppContext = {
   db: Database
@@ -9,6 +10,7 @@ export type AppContext = {
   cfg: Config
   oauthClient: NodeOAuthClient
   jobManager: JobManager
+  usage: UsageRecorder
 }
 
 export type Config = {

@@ -1,6 +1,8 @@
 import { Database } from '../db/database'
 import { debugLog } from '../lib/env'
 
+const USAGE_RETENTION_DAYS = 90
+
 export class CleanupService {
   private db: Database
   private timer?: NodeJS.Timeout
@@ -31,6 +33,15 @@ export class CleanupService {
     await this.db
       .deleteFrom('seen_post')
       .where('created_at', '<', cutOffDate)
+      .limit(10000)
+      .execute()
+
+    const usageCutOffDate = new Date()
+    usageCutOffDate.setUTCDate(usageCutOffDate.getUTCDate() - USAGE_RETENTION_DAYS)
+
+    await this.db
+      .deleteFrom('feed_usage')
+      .where('day', '<', usageCutOffDate.toISOString().slice(0, 10))
       .limit(10000)
       .execute()
 

@@ -115,6 +115,8 @@ export default function (server: Server, ctx: AppContext) {
 
       await trackSeenHighlinePosts(requesterDid, input.body.interactions)
 
+      ctx.usage.recordInteractions(requesterDid, input.body.interactions)
+
       let t1 = performance.now()
       console.log(`Handled ${input.body.interactions.length} interactions in ${Math.round(t1 - t0)} ms for ${requesterDid} (${summarizeEvents(input.body.interactions)})`)
 
